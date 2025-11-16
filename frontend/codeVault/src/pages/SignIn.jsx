@@ -1,4 +1,3 @@
-// ...existing code...
 import { useState, useEffect } from "react";
 import "./SignIn.css";
 import { Eye, EyeClosed } from "lucide-react";
@@ -27,10 +26,11 @@ const SignIn = () => {
     }
   }, [password, confirmPassword, isLogin]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setAuthError("");
     setLoading(true);
 
+    // ---------------- LOGIN ----------------
     if (isLogin) {
       if (!email.trim() || !password) {
         setAuthError("Please provide both email and password.");
@@ -38,35 +38,81 @@ const SignIn = () => {
         return;
       }
 
-      // Simulate successful sign in and navigate to dashboard
-      setTimeout(() => {
-        setLoading(false);
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/auth/login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setAuthError(data.message || "Login failed.");
+          setLoading(false);
+          return;
+        }
+
         navigate("/dashboard");
-      }, 600);
-    } else {
-      if (passwordMismatch || !isEmailValid) {
-        setAuthError("Please fix the highlighted issues before signing up.");
-        setLoading(false);
-        return;
+      } catch (err) {
+        setAuthError("Server unreachable. Please try again.");
+        console.error(err);
       }
 
-      if (!email.trim() || !password || !fullName.trim()) {
-        setAuthError("Full name, email and password are required for sign up.");
-        setLoading(false);
-        return;
-      }
-
-      // Simulate successful sign up (no backend)
-      setTimeout(() => {
-        setLoading(false);
-        alert("Account created. You can now sign in.");
-        setIsLogin(true);
-        setFullName("");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-      }, 600);
+      setLoading(false);
+      return;
     }
+
+    // ---------------- SIGN UP ----------------
+    if (passwordMismatch || !isEmailValid) {
+      setAuthError("Please fix the highlighted issues before signing up.");
+      setLoading(false);
+      return;
+    }
+
+    if (!email.trim() || !password || !fullName.trim()) {
+      setAuthError("Full name, email and password are required for sign up.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/auth/signup`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: fullName,
+            email,
+            password,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAuthError(data.message || "Signup failed.");
+        setLoading(false);
+        return;
+      }
+
+      alert("Account created. You can now sign in.");
+      setIsLogin(true);
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setAuthError("Server unreachable. Please try again.");
+      console.error(err);
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -183,4 +229,3 @@ const SignIn = () => {
 };
 
 export default SignIn;
-// ...existing code...
