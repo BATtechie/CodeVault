@@ -1,0 +1,105 @@
+/* Visual style aligned with SignIn.css to match site theme */
+.landing-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #080808 0%, #161c23 50%, #3d4448 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #e6f7f7;
+}
+
+.landing-hero {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 20px;
+}
+
+.landing-card {
+  background: linear-gradient(135deg, #111418 0%, #171b20 50%, #111418 100%);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(6, 182, 212, 0.12);
+  padding: 40px;
+  width: 100%;
+  max-width: 920px;
+  text-align: center;
+}
+
+.landing-card h1 {
+  font-size: 44px;
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, #06b6d4 0%, #34d399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-card .subtext {
+  color: #b7c2c6;
+  font-size: 16px;
+  margin-bottom: 22px;
+}
+
+.cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.primary-cta {
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #06b6d4 0%, #34d399 100%);
+  color: #021215;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(6, 182, 212, 0.12);
+}
+
+.primary-cta:hover { transform: translateY(-2px); }
+
+.secondary-cta {
+  padding: 12px 18px;
+  background: transparent;
+  color: #98a2a6;
+  border: 1px solid rgba(6, 182, 212, 0.10);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.features {
+  padding: 40px 20px;
+}
+
+.features-inner {
+  max-width: 920px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.feature-card {
+  background: linear-gradient(180deg, rgba(13,17,20,0.6), rgba(8,10,12,0.35));
+  border: 1px solid rgba(6, 182, 212, 0.06);
+  border-radius: 10px;
+  padding: 22px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+.feature-card h3 { margin: 0 0 8px 0; color: #e6f7f7; }
+.feature-card p { margin: 0; color: #b7c2c6; font-size: 14px; }
+
+.landing-footer {
+  text-align: center;
+  padding: 20px 0 40px 0;
+  color: #8d9a9c;
+}
+
+@media (max-width: 640px) {
+  .landing-card { padding: 28px; }
+  .landing-card h1 { font-size: 32px; }
+}
