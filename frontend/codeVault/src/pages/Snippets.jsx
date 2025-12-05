@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './Snippets.css';
+import { API_BASE_URL } from '../config/api.js';
 
 const Snippets = () => {
   const [snippets, setSnippets] = useState([]);
@@ -7,9 +8,6 @@ const Snippets = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSnippets, setExpandedSnippets] = useState(new Set());
-
-  const backendUrl = import.meta.env.VITE_BACKEND_URL ||
-    (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
 
   useEffect(() => {
     fetchPublicSnippets();
@@ -20,7 +18,7 @@ const Snippets = () => {
       setLoading(true);
       setError('');
 
-      const res = await fetch(`${backendUrl}/api/snippets/public`);
+      const res = await fetch(`${API_BASE_URL}/api/snippets/public`);
       
       // If response is not ok, treat as empty state
       if (!res.ok) {

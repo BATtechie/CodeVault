@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Navbar.css';
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from '../config/api.js';
 
 const Navbar = () => {
   const location = useLocation();
@@ -20,10 +21,7 @@ const Navbar = () => {
 
   const checkAuth = async () => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-        (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-
-      const res = await fetch(`${backendUrl}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -44,10 +42,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-        (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-
-      await fetch(`${backendUrl}/api/auth/logout`, {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -112,9 +107,14 @@ const Navbar = () => {
         <div className="navbar-actions">
           {isAuthenticated ? (
             <>
-              <div className="user-avatar-nav" title={user?.name || user?.email || 'User'}>
+              <Link 
+                to="/profile"
+                className="user-avatar-nav" 
+                title={`${user?.name || user?.email || 'User'} - View Profile`}
+                style={{ textDecoration: 'none', cursor: 'pointer' }}
+              >
                 {user?.name ? user.name.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
-              </div>
+              </Link>
               <button className="btn-logout-nav" onClick={handleLogout}>
                 Log Out
               </button>

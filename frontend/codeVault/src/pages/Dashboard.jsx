@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
+import { API_BASE_URL } from '../config/api.js';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [snippets, setSnippets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -22,9 +23,6 @@ const Dashboard = () => {
   const [saving, setSaving] = useState(false);
   const [expandedSnippets, setExpandedSnippets] = useState(new Set());
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-    (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-
   useEffect(() => {
     fetchSnippets();
   }, []);
@@ -33,7 +31,7 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await fetch(`${backendUrl}/api/snippets`, {
+      const res = await fetch(`${API_BASE_URL}/api/snippets`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -95,7 +93,7 @@ const Dashboard = () => {
     setError('');
 
     try {
-      const res = await fetch(`${backendUrl}/api/snippets`, {
+      const res = await fetch(`${API_BASE_URL}/api/snippets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -146,7 +144,7 @@ const Dashboard = () => {
     setError('');
 
     try {
-      const res = await fetch(`${backendUrl}/api/snippets/${editingSnippet.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/snippets/${editingSnippet.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -193,7 +191,7 @@ const Dashboard = () => {
     }
 
     try {
-      const res = await fetch(`${backendUrl}/api/snippets/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/snippets/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });

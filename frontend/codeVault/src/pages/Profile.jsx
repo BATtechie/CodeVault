@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
+import { API_BASE_URL } from '../config/api.js';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -18,10 +19,7 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-        (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-
-      const res = await fetch(`${backendUrl}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -66,10 +64,7 @@ const Profile = () => {
     setSaving(true);
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-        (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-
-      const res = await fetch(`${backendUrl}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -100,10 +95,7 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-        (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-
-      await fetch(`${backendUrl}/api/auth/logout`, {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
