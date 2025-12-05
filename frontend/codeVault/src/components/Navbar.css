@@ -1,0 +1,200 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.navbar {
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.logo-icon {
+  background: linear-gradient(135deg, #4F7FFF 0%, #3b5dcc 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 10px 20px;
+  text-decoration: none;
+  color: #5a5a5a;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background-color: #f0f4ff;
+  color: #4F7FFF;
+}
+
+.nav-link.active {
+  color: #4F7FFF;
+  background-color: #f0f4ff;
+}
+
+.navbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-login,
+.btn-signup {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-login {
+  background-color: transparent;
+  color: #5a5a5a;
+}
+
+.btn-login:hover {
+  background-color: #f0f0f0;
+}
+
+.btn-signup {
+  background: linear-gradient(135deg, #4F7FFF 0%, #3b5dcc 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(79, 127, 255, 0.3);
+}
+
+.btn-signup:hover {
+  box-shadow: 0 4px 12px rgba(79, 127, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.user-name {
+  color: #5a5a5a;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.user-avatar-link:hover {
+  transform: scale(1.1);
+}
+
+.user-avatar-nav {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4F7FFF 0%, #3b5dcc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(79, 127, 255, 0.3);
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.user-avatar-nav:hover {
+  box-shadow: 0 4px 12px rgba(79, 127, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-logout-nav {
+  padding: 10px 24px;
+  border: 1px solid #ff6b6b;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  color: #ff6b6b;
+}
+
+.btn-logout-nav:hover {
+  background-color: #ff6b6b;
+  color: white;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .navbar-container {
+    height: 64px;
+    padding: 0 16px;
+  }
+  
+  .navbar-links {
+    display: none;
+  }
+  
+  .logo-text {
+    font-size: 18px;
+  }
+  
+  .navbar-actions {
+    gap: 8px;
+  }
+  
+  .btn-login,
+  .btn-signup {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}
+

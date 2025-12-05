@@ -8,7 +8,8 @@ router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 
 router.get('/me', authMiddleware, authController.getProfile);
-router.post('/logout', authController.logout);
+router.put('/me', authMiddleware, authController.updateProfile);
+router.post('/logout', authMiddleware, authController.logout);
 
 // Alias for getProfile
 router.get('/verify', authMiddleware, authController.getProfile);

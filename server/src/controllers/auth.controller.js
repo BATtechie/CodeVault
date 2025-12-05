@@ -13,10 +13,36 @@ const authController = {
           message: 'Email and password are required' 
         });
       }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format'
+        });
+      }
+
+      // Validate password length
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters long'
+        });
+      }
   
-      const existingUser = await prisma.user.findUnique({
-        where: { email }
-      });
+      let existingUser;
+      try {
+        existingUser = await prisma.user.findUnique({
+          where: { email }
+        });
+      } catch (dbError) {
+        console.error('Database error checking existing user:', dbError);
+        return res.status(500).json({
+          success: false,
+          message: 'Database connection error. Please try again later.'
+        });
+      }
 
       if (existingUser) {
         return res.status(409).json({ 
@@ -27,19 +53,36 @@ const authController = {
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const user = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name: name || null
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          createdAt: true
-        }
-      });
+      let user;
+      try {
+        user = await prisma.user.create({
+          data: {
+            email,
+            password: hashedPassword,
+            name: name || null
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            createdAt: true
+          }
+        });
+      } catch (dbError) {
+        console.error('Database error creating user:', dbError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create account. Please try again later.'
+        });
+      }
+
+      if (!process.env.JWT_SECRET) {
+        console.error('JWT_SECRET is not configured');
+        return res.status(500).json({
+          success: false,
+          message: 'Server configuration error'
+        });
+      }
 
       const token = jwt.sign(
         { userId: user.id, email: user.email },
@@ -47,11 +90,14 @@ const authController = {
         { expiresIn: '7d' }
       );
 
+      // Cookie settings for cross-origin support
+      const isProduction = process.env.NODE_ENV === 'production';
       res.cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        secure: isProduction, // Must be true for sameSite: 'none'
+        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin, 'lax' for same-site
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/', // Ensure cookie is available for all paths
       });
 
       res.status(201).json({
@@ -61,9 +107,13 @@ const authController = {
       });
     } catch (error) {
       console.error('Register error:', error);
+      // Don't expose internal error details in production
+      const errorMessage = process.env.NODE_ENV === 'production' 
+        ? 'Registration failed. Please try again later.'
+        : error.message;
       res.status(500).json({ 
         success: false, 
-        message: 'Registration failed' 
+        message: errorMessage 
       });
     }
   },
@@ -81,9 +131,18 @@ const authController = {
       }
 
       // Find user
-      const user = await prisma.user.findUnique({
-        where: { email }
-      });
+      let user;
+      try {
+        user = await prisma.user.findUnique({
+          where: { email }
+        });
+      } catch (dbError) {
+        console.error('Database error finding user:', dbError);
+        return res.status(500).json({
+          success: false,
+          message: 'Database connection error. Please try again later.'
+        });
+      }
 
       if (!user) {
         return res.status(401).json({ 
@@ -102,6 +161,14 @@ const authController = {
       }
 
       // Generate JWT token
+      if (!process.env.JWT_SECRET) {
+        console.error('JWT_SECRET is not configured');
+        return res.status(500).json({
+          success: false,
+          message: 'Server configuration error'
+        });
+      }
+
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET,
@@ -109,11 +176,14 @@ const authController = {
       );
 
       // Set cookie
+      // Cookie settings for cross-origin support
+      const isProduction = process.env.NODE_ENV === 'production';
       res.cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        secure: isProduction, // Must be true for sameSite: 'none'
+        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin, 'lax' for same-site
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/', // Ensure cookie is available for all paths
       });
 
       // Remove password from response
@@ -126,9 +196,13 @@ const authController = {
       });
     } catch (error) {
       console.error('Login error:', error);
+      // Don't expose internal error details in production
+      const errorMessage = process.env.NODE_ENV === 'production'
+        ? 'Login failed. Please try again later.'
+        : error.message;
       res.status(500).json({ 
         success: false, 
-        message: 'Login failed' 
+        message: errorMessage 
       });
     }
   },
@@ -150,9 +224,64 @@ const authController = {
     }
   },
 
+  async updateProfile(req, res) {
+    try {
+      const { name, email } = req.body;
+      const userId = req.user.id;
+
+      // Check if email is being changed and if it's already taken
+      if (email && email !== req.user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email }
+        });
+
+        if (existingUser) {
+          return res.status(409).json({
+            success: false,
+            message: 'Email already exists'
+          });
+        }
+      }
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(email !== undefined && { email })
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: updatedUser
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update profile'
+      });
+    }
+  },
+
   async logout(req, res) {
     try {
-      res.clearCookie('token');
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/',
+      });
       res.status(200).json({
         success: true,
         message: 'Logged out successfully'

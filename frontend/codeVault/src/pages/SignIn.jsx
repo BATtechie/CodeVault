@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import "./SignIn.css";
 import { Eye, EyeClosed } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { API_BASE_URL } from "../config/api.js";
 
 const SignIn = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
+  const initialMode = location.state?.mode === 'signup' ? false : true;
+  const [isLogin, setIsLogin] = useState(initialMode);
   const [showPassword, setShowPassword] = useState(false);
 
   const [fullName, setFullName] = useState("");
@@ -30,7 +33,6 @@ const SignIn = () => {
     setAuthError("");
     setLoading(true);
 
-    // ---------------- LOGIN ----------------
     if (isLogin) {
       if (!email.trim() || !password) {
         setAuthError("Please provide both email and password.");
@@ -38,35 +40,71 @@ const SignIn = () => {
         return;
       }
 
+      // Add timeout to fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       try {
+        console.log("Backend URL:", API_BASE_URL);
+        console.log("Environment:", import.meta.env.MODE);
+
         const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/auth/login`,
+          `${API_BASE_URL}/api/auth/login`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: 'include',
             body: JSON.stringify({ email, password }),
+            signal: controller.signal,
           }
         );
 
-        const data = await res.json();
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
-          setAuthError(data.message || "Login failed.");
+          let errorMessage = "Invalid email or password. Please try again.";
+          try {
+            const data = await res.json();
+            errorMessage = data.message || errorMessage;
+          } catch {
+            // If response is not JSON, use status-based messages
+            if (res.status === 401) {
+              errorMessage = "Invalid email or password. Please try again.";
+            } else if (res.status === 500) {
+              errorMessage = "Server error. Please try again later.";
+            } else if (res.status === 0 || res.status >= 500) {
+              errorMessage = "Server is not responding. Please check if the server is running.";
+            }
+          }
+          setAuthError(errorMessage);
           setLoading(false);
           return;
         }
 
-        navigate("/dashboard");
+        const data = await res.json();
+        if (data.success) {
+          navigate("/dashboard");
+        } else {
+          setAuthError(data.message || "Login failed. Please try again.");
+          setLoading(false);
+        }
       } catch (err) {
-        setAuthError("Server unreachable. Please try again.");
-        console.error(err);
+        console.error("Login error:", err);
+        clearTimeout(timeoutId);
+        
+        if (err.name === 'AbortError') {
+          setAuthError(`Request timed out. The server at ${API_BASE_URL} is taking too long to respond.`);
+        } else if (err.name === 'TypeError' && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) {
+          setAuthError(`Cannot connect to server at ${API_BASE_URL}. Please check if the server is running and accessible.`);
+        } else {
+          setAuthError("Network error. Please check your connection and try again.");
+        }
+        setLoading(false);
+        return;
       }
-
-      setLoading(false);
-      return;
     }
 
-    // ---------------- SIGN UP ----------------
+
     if (passwordMismatch || !isEmailValid) {
       setAuthError("Please fix the highlighted issues before signing up.");
       setLoading(false);
@@ -79,37 +117,85 @@ const SignIn = () => {
       return;
     }
 
+    // Add timeout to fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     try {
+      console.log("Backend URL:", API_BASE_URL);
+      console.log("Environment:", import.meta.env.MODE);
+
       const res = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/auth/signup`,
+        `${API_BASE_URL}/api/auth/signup`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: 'include',
           body: JSON.stringify({
             name: fullName,
             email,
             password,
           }),
+          signal: controller.signal,
         }
       );
 
-      const data = await res.json();
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
-        setAuthError(data.message || "Signup failed.");
+        let errorMessage = "Signup failed. Please try again.";
+        try {
+          const data = await res.json();
+          if (data.message) {
+            // Handle specific error cases
+            if (data.message.includes('already exists') || res.status === 409) {
+              errorMessage = "An account with this email already exists. Please sign in instead.";
+            } else {
+              errorMessage = data.message;
+            }
+          }
+        } catch {
+          // If response is not JSON, use status-based messages
+          if (res.status === 409) {
+            errorMessage = "An account with this email already exists. Please sign in instead.";
+          } else if (res.status === 400) {
+            errorMessage = "Invalid information. Please check your inputs.";
+          } else if (res.status === 500) {
+            errorMessage = "Server error. Please try again later.";
+          } else if (res.status === 0 || res.status >= 500) {
+            errorMessage = "Server is not responding. Please check if the server is running.";
+          }
+        }
+        setAuthError(errorMessage);
         setLoading(false);
         return;
       }
 
-      alert("Account created. You can now sign in.");
-      setIsLogin(true);
-      setFullName("");
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
+      const data = await res.json();
+      if (data.success) {
+        alert("Account created successfully! You can now sign in.");
+        setIsLogin(true);
+        setFullName("");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+      } else {
+        setAuthError(data.message || "Signup failed. Please try again.");
+        setLoading(false);
+      }
     } catch (err) {
-      setAuthError("Server unreachable. Please try again.");
-      console.error(err);
+      console.error("Signup error:", err);
+      clearTimeout(timeoutId);
+      
+      if (err.name === 'AbortError') {
+        setAuthError(`Request timed out. The server at ${API_BASE_URL} is taking too long to respond.`);
+      } else if (err.name === 'TypeError' && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) {
+        setAuthError(`Cannot connect to server at ${API_BASE_URL}. Please check if the server is running and accessible.`);
+      } else {
+        setAuthError("Network error. Please check your connection and try again.");
+      }
+      setLoading(false);
+      return;
     }
 
     setLoading(false);
