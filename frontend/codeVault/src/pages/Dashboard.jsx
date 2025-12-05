@@ -31,9 +31,16 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError('');
+      const token = localStorage.getItem('authToken');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/snippets`, {
         method: 'GET',
         credentials: 'include',
+        headers: headers,
       });
 
       if (res.status === 401) {
@@ -93,9 +100,15 @@ const Dashboard = () => {
     setError('');
 
     try {
+      const token = localStorage.getItem('authToken');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/snippets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         credentials: 'include',
         body: JSON.stringify({
           title: formData.title,
@@ -144,9 +157,15 @@ const Dashboard = () => {
     setError('');
 
     try {
+      const token = localStorage.getItem('authToken');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/snippets/${editingSnippet.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         credentials: 'include',
         body: JSON.stringify({
           title: formData.title,
@@ -191,8 +210,15 @@ const Dashboard = () => {
     }
 
     try {
+      const token = localStorage.getItem('authToken');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/snippets/${id}`, {
         method: 'DELETE',
+        headers: headers,
         credentials: 'include',
       });
 

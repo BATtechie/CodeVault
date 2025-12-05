@@ -19,13 +19,25 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
+      // Get token from localStorage as fallback
+      const token = localStorage.getItem('authToken');
+      
+      // Try with cookie first, then fallback to Authorization header
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'GET',
         credentials: 'include',
+        headers: headers,
       });
 
       if (!res.ok) {
         if (res.status === 401) {
+          // Clear invalid token
+          localStorage.removeItem('authToken');
           navigate('/sign-in');
           return;
         }
@@ -64,9 +76,15 @@ const Profile = () => {
     setSaving(true);
 
     try {
+      const token = localStorage.getItem('authToken');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         credentials: 'include',
         body: JSON.stringify(formData),
       });
@@ -95,15 +113,25 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem('authToken');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
+        headers: headers,
         credentials: 'include',
       });
 
+      // Clear token from localStorage
+      localStorage.removeItem('authToken');
       navigate('/');
     } catch (err) {
       console.error('Logout error:', err);
-      // Even if logout fails, redirect to home
+      // Clear token even if logout fails
+      localStorage.removeItem('authToken');
       navigate('/');
     }
   };

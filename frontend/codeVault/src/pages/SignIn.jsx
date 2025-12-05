@@ -83,6 +83,10 @@ const SignIn = () => {
 
         const data = await res.json();
         if (data.success) {
+          // Store token in localStorage as fallback for production
+          if (data.data && data.data.token) {
+            localStorage.setItem('authToken', data.data.token);
+          }
           navigate("/dashboard");
         } else {
           setAuthError(data.message || "Login failed. Please try again.");
@@ -173,6 +177,10 @@ const SignIn = () => {
 
       const data = await res.json();
       if (data.success) {
+        // Store token in localStorage as fallback for production
+        if (data.data && data.data.token) {
+          localStorage.setItem('authToken', data.data.token);
+        }
         alert("Account created successfully! You can now sign in.");
         setIsLogin(true);
         setFullName("");
