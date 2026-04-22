@@ -21,16 +21,9 @@ const Navbar = () => {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'GET',
         credentials: 'include',
-        headers: headers,
       });
 
       if (res.ok) {
@@ -40,12 +33,13 @@ const Navbar = () => {
           setUser(data.data);
         }
       } else {
-        // Clear invalid token
-        localStorage.removeItem('authToken');
+        setIsAuthenticated(false);
+        setUser(null);
       }
     } catch (err) {
       console.error('Auth check failed:', err);
-      localStorage.removeItem('authToken');
+      setIsAuthenticated(false);
+      setUser(null);
     } finally {
       setCheckingAuth(false);
     }
@@ -53,21 +47,13 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
-        headers: headers,
         credentials: 'include',
       });
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
-      localStorage.removeItem('authToken');
       setIsAuthenticated(false);
       setUser(null);
       navigate('/');

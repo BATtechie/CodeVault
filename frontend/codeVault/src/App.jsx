@@ -7,6 +7,7 @@ import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Snippets from './pages/Snippets';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const AppContent = () => {
   const location = useLocation();
@@ -20,8 +21,8 @@ const AppContent = () => {
         <Route path="/sign-in" element={<SignIn/>} />
         <Route path="/home" element={<Home />} />
         <Route path="/snippets" element={<Snippets />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       </Routes>
       {!isSignInPage && <Footer />}
     </>

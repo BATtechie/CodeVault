@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Home.css';
+import { API_BASE_URL } from '../config/api.js';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -9,11 +10,8 @@ const Home = () => {
   const checkAuthAndRedirect = async () => {
     setIsChecking(true);
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 
-        (import.meta.env.PROD ? 'https://your-backend.onrender.com' : 'http://localhost:3000');
-      
       const res = await fetch(
-        `${backendUrl}/api/auth/me`,
+        `${API_BASE_URL}/api/auth/me`,
         {
           method: 'GET',
           credentials: 'include', // Important: include cookies

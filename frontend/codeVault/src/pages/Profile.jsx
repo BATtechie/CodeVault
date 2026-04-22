@@ -14,51 +14,40 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
-      // Get token from localStorage as fallback
-      const token = localStorage.getItem('authToken');
-      
-      // Try with cookie first, then fallback to Authorization header
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: headers,
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          // Clear invalid token
-          localStorage.removeItem('authToken');
-          navigate('/sign-in');
-          return;
-        }
-        throw new Error('Failed to fetch profile');
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.data);
-        setFormData({
-          name: data.data.name || '',
-          email: data.data.email || ''
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          method: 'GET',
+          credentials: 'include',
         });
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            navigate('/sign-in');
+            return;
+          }
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to fetch profile');
+        }
+
+        const data = await res.json();
+        if (data.success) {
+          setUser(data.data);
+          setFormData({
+            name: data.data.name || '',
+            email: data.data.email || ''
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile. Please try again.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      setError('Failed to load profile. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchProfile();
+  }, [navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -76,11 +65,9 @@ const Profile = () => {
     setSaving(true);
 
     try {
-      const token = localStorage.getItem('authToken');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      const headers = {
+        'Content-Type': 'application/json',
+      };
 
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'PUT',
@@ -113,25 +100,13 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
-        headers: headers,
         credentials: 'include',
       });
-
-      // Clear token from localStorage
-      localStorage.removeItem('authToken');
-      navigate('/');
     } catch (err) {
       console.error('Logout error:', err);
-      // Clear token even if logout fails
-      localStorage.removeItem('authToken');
+    } finally {
       navigate('/');
     }
   };

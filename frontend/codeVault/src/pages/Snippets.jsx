@@ -132,10 +132,10 @@ const Snippets = () => {
                 </div>
                 <div className="author-info">
                   <span className="author-avatar">
-                    {(snippet.user?.name || snippet.user?.email || 'U').charAt(0).toUpperCase()}
+                    {(snippet.user?.name || 'U').charAt(0).toUpperCase()}
                   </span>
                   <span className="author-name">
-                    {snippet.user?.name || snippet.user?.email || 'Unknown user'}
+                    {snippet.user?.name || 'Unknown user'}
                   </span>
                 </div>
               </div>

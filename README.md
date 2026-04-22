@@ -1,6 +1,6 @@
 # CodeVault – A Developer Code Snippet Management System
 
-A collaborative platform for developers to store, organize, search, and share reusable code snippets with syntax highlighting and team collaboration features.
+A platform for developers to store, organize, and browse reusable code snippets.
 
 ---
 
@@ -23,16 +23,10 @@ Developers constantly reuse code patterns but waste time searching for solutions
 
 | Category | Features |
 |----------|----------|
-| **Authentication & Authorization** | User registration, login, logout, role-based access (admin/user), protected routes |
-| **CRUD Operations** | Create, read, update, delete snippets and related entities |
-| **Frontend Routing** | Home, Login, Register, Dashboard, Snippet Detail, Create/Edit Snippet, Teams, Profile |
-| **Pagination** | Display 10-20 snippets per page with navigation and total count |
-| **Search** | Search by title, description, code content, author username with debounced input |
-| **Sorting** | Sort by date (newest/oldest), title (A-Z/Z-A), view count, language |
-| **Filtering** | Filter by programming language, category, tags, visibility (public/private/team), favorites |
-| **Syntax Highlighting** | Multi-language code highlighting with Prism.js |
-| **Team Collaboration** | Create teams, share snippets with team members |
-| **Hosting** | Deploy with HTTPS and CORS configured |
+| **Authentication** | Signup, login, logout, protected routes (cookie-based session) |
+| **Snippets** | Create, read, update, delete your own snippets |
+| **Public browsing** | Browse public snippets shared by users |
+| **Search (basic)** | Search by title/language/tags (client-side) |
 
 ---
 
@@ -41,24 +35,23 @@ Developers constantly reuse code patterns but waste time searching for solutions
 ### Frontend
 - **React.js** – UI library
 - **React Router DOM** – Client-side routing
-- **Axios** – HTTP client
-- **Prism.js** – Syntax highlighting
-- **React Icons** – Icon library
+- **Fetch API** – HTTP client
 - **CSS** – Styling
 
 ### Backend
 - **Node.js** – Runtime environment
-- **Express.js** – Web framework
+- **Express.js** – Web framework (Express v5)
 - **Prisma ORM** – Database ORM
-- **express-validator** – Request validation
+- **Helmet** – Security headers
+- **express-rate-limit** – Basic abuse protection for auth endpoints
 - **dotenv** – Environment variable management
 - **nodemon** – Development hot-reload
 
 ### Database
-- **MySQL** – Relational database
+- **PostgreSQL** – Relational database (via Prisma)
 
 ### Authentication
-- **JWT (jsonwebtoken)** – Token-based authentication
+- **JWT (jsonwebtoken)** – Stored in an `httpOnly` cookie (cookie-based session)
 - **bcrypt** – Password hashing
 
 ### Hosting
@@ -120,7 +113,7 @@ npm install
 
 Create `.env.local` file:
 ```env
-VITE_BACKEND_URL=http://localhost:5000
+VITE_BACKEND_URL=http://localhost:3000
 ```
 
 Start frontend:
@@ -136,9 +129,9 @@ npm install
 
 Create `.env` file:
 ```env
-DATABASE_URL="mysql://user:password@localhost:3306/codevault"
+DATABASE_URL="postgresql://user:password@localhost:5432/codevault"
 JWT_SECRET="your-secret-key-here"
-PORT=5000
+PORT=3000
 NODE_ENV=development
 ```
 
@@ -153,7 +146,7 @@ Start backend:
 npm run dev
 ```
 
-The frontend will run on `http://localhost:5173` and backend on `http://localhost:5000`
+The frontend will run on `http://localhost:5173` and backend on `http://localhost:3000`
 
 ---
 
@@ -163,8 +156,11 @@ The frontend will run on `http://localhost:5173` and backend on `http://localhos
 
 | Endpoint | Method | Description | Access |
 |----------|--------|-------------|--------|
-| `/api/auth/register` | POST | Register new user | Public |
+| `/api/auth/signup` | POST | Register new user | Public |
 | `/api/auth/login` | POST | Authenticate user | Public |
+| `/api/auth/me` | GET | Get current user | Authenticated |
+| `/api/auth/me` | PUT | Update current user | Authenticated |
+| `/api/auth/logout` | POST | Clear session cookie | Public |
 
 ### Snippet Endpoints
 
@@ -175,20 +171,7 @@ The frontend will run on `http://localhost:5173` and backend on `http://localhos
 | `/api/snippets` | POST | Create new snippet | Authenticated |
 | `/api/snippets/:id` | PUT | Update snippet | Authenticated |
 | `/api/snippets/:id` | DELETE | Delete snippet | Authenticated |
-
-### Team Endpoints
-
-| Endpoint | Method | Description | Access |
-|----------|--------|-------------|--------|
-| `/api/teams` | POST | Create team | Authenticated |
-| `/api/teams/:id` | GET | Get team details | Authenticated |
-
-### User Endpoints
-
-| Endpoint | Method | Description | Access |
-|----------|--------|-------------|--------|
-| `/api/users/profile` | GET | Get user profile | Authenticated |
-| `/api/users/profile` | PUT | Update profile | Authenticated |
+| `/api/snippets/public` | GET | Browse public snippets | Public |
 
 ---
 
@@ -237,19 +220,19 @@ CodeVault/
 
 ### Frontend (`.env.local`)
 ```env
-VITE_BACKEND_URL=http://localhost:5000
+VITE_BACKEND_URL=http://localhost:3000
 ```
 
 ### Backend (`.env`)
 ```env
 # Database
-DATABASE_URL="mysql://user:password@localhost:3306/codevault"
+DATABASE_URL="postgresql://user:password@localhost:5432/codevault"
 
 # JWT
 JWT_SECRET="your-super-secret-key-change-this"
 
 # Server
-PORT=5000
+PORT=3000
 NODE_ENV=development
 ```
 

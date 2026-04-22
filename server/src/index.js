@@ -4,11 +4,13 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
 import snippetRoutes from './routes/snippet.routes.js';
-import snippetController from './controllers/snippet.controller.js';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
 const app = express();
+app.use(helmet());
 // CORS configuration
 // Allow multiple origins for development and production
 const allowedOrigins = [
@@ -28,17 +30,17 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // In production, check against allowed origins
-    // Also allow Vercel domains (vercel.app, vercel.com)
-    const isVercelDomain = origin.includes('vercel.app') || origin.includes('vercel.com');
-    const isAllowed = allowedOrigins.includes(origin) || 
-                     allowedOrigins.some(allowed => allowed && origin.includes(allowed)) ||
-                     isVercelDomain;
+    // In production, use exact-match allowlist.
+    // Optionally allow Vercel preview URLs if explicitly enabled.
+    const allowVercelPreviews = process.env.ALLOW_VERCEL_PREVIEWS === 'true';
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      (allowVercelPreviews && origin.endsWith('.vercel.app'));
     
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}, Vercel domains`);
+      console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -50,6 +52,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth', authLimiter);
 
 // Simple request logger for debugging route hits
 app.use((req, _res, next) => {
@@ -87,9 +98,6 @@ app.get('/health', (req, res) => {
     database: process.env.DATABASE_URL ? 'configured' : 'not configured'
   });
 });
-
-// Public endpoint for browsing snippets
-app.get('/api/snippets/public', snippetController.getPublicSnippets);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/snippets', snippetRoutes);

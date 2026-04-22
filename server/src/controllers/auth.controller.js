@@ -92,18 +92,21 @@ const authController = {
 
       // Cookie settings for cross-origin support
       const isProduction = process.env.NODE_ENV === 'production';
-      res.cookie('token', token, {
+      const cookieOptions = {
         httpOnly: true,
         secure: isProduction, // Must be true for sameSite: 'none'
         sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin, 'lax' for same-site
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/', // Ensure cookie is available for all paths
-      });
+      };
+      
+      // Don't set domain in production - let browser handle it
+      res.cookie('token', token, cookieOptions);
 
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
-        data: { user, token }
+        data: { user }
       });
     } catch (error) {
       console.error('Register error:', error);
@@ -178,13 +181,17 @@ const authController = {
       // Set cookie
       // Cookie settings for cross-origin support
       const isProduction = process.env.NODE_ENV === 'production';
-      res.cookie('token', token, {
+      const cookieOptions = {
         httpOnly: true,
         secure: isProduction, // Must be true for sameSite: 'none'
         sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin, 'lax' for same-site
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/', // Ensure cookie is available for all paths
-      });
+      };
+      
+      // Don't set domain in production - let browser handle it
+      // Setting domain explicitly can cause issues with cross-origin cookies
+      res.cookie('token', token, cookieOptions);
 
       // Remove password from response
       const { password: _, ...userWithoutPassword } = user;
@@ -192,7 +199,7 @@ const authController = {
       res.status(200).json({
         success: true,
         message: 'Login successful',
-        data: { user: userWithoutPassword, token }
+        data: { user: userWithoutPassword }
       });
     } catch (error) {
       console.error('Login error:', error);
