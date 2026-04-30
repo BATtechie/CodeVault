@@ -1,0 +1,205 @@
+.snippet-card-v2 {
+  padding: 1.25rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: 1rem;
+}
+
+.snippet-card-v2__topline,
+.snippet-card-v2__meta,
+.snippet-card-v2__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.snippet-card-v2__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(40, 68, 135, 0.08);
+  color: var(--text-emphasis);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.snippet-card-v2__date,
+.snippet-card-v2__meta {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.snippet-card-v2__title-group {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 42rem;
+}
+
+.snippet-card-v2__title-group h3 {
+  margin: 0;
+  font-size: clamp(1.25rem, 1rem + 0.8vw, 1.55rem);
+  color: var(--text-primary);
+}
+
+.snippet-card-v2__title-group p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.snippet-card-v2__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.snippet-card-v2__actions button,
+.snippet-card-v2__comment-toggle,
+.snippet-card-v2__comment-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: white;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: 160ms ease;
+  font: inherit;
+}
+
+.snippet-card-v2__actions button {
+  padding: 0.7rem 1rem;
+}
+
+.snippet-card-v2__actions button:hover,
+.snippet-card-v2__comment-toggle:hover,
+.snippet-card-v2__comment-form button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(28, 39, 74, 0.08);
+}
+
+.snippet-card-v2__actions .danger {
+  border-color: rgba(181, 52, 87, 0.18);
+  color: #b53457;
+}
+
+.snippet-card-v2__meta {
+  justify-content: flex-start;
+}
+
+.snippet-card-v2__owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.snippet-card-v2__owner-avatar,
+.snippet-card-v2__comment-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #19446c, #8760ff);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.snippet-card-v2__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.snippet-card-v2__tags span {
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-emphasis);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.snippet-card-v2__comments {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 1rem;
+}
+
+.snippet-card-v2__comment-toggle {
+  padding: 0.72rem 1rem;
+}
+
+.snippet-card-v2__comment-panel {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.snippet-card-v2__comment {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  background: var(--surface-alt);
+}
+
+.snippet-card-v2__comment-body {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.snippet-card-v2__comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.snippet-card-v2__comment-body p,
+.snippet-card-v2__hint {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.snippet-card-v2__comment-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.snippet-card-v2__comment-form textarea {
+  min-height: 7rem;
+}
+
+.snippet-card-v2__comment-form button {
+  justify-self: start;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+  border: none;
+}
+
+@media (max-width: 720px) {
+  .snippet-card-v2 {
+    padding: 1rem;
+  }
+
+  .snippet-card-v2__actions,
+  .snippet-card-v2__topline {
+    width: 100%;
+  }
+}

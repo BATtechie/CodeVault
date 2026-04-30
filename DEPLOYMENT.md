@@ -1,160 +1,143 @@
 # Deployment Guide
 
-## Backend (Render) Setup
+This project is split into two deployable apps:
 
-### 1. Environment Variables on Render
+- `frontend/codeVault`: React + Vite frontend
+- `server`: Express + Prisma backend
 
-In your Render dashboard, go to your backend service → Environment → Add the following:
+You can deploy them independently, which keeps the frontend fast and the backend easier to scale.
 
+## Production Environment Variables
+
+### Frontend
+
+```env
+VITE_BACKEND_URL=https://your-api-domain.com
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_o1bpl0RzvCaw@ep-misty-queen-ahgfcx7j-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-JWT_SECRET=your_secret_key_here
+
+### Backend
+
+```env
+DATABASE_URL=postgresql://...
+JWT_SECRET=replace-with-a-long-random-secret
 NODE_ENV=production
-PORT=10000
-FRONTEND_URL=https://your-frontend.vercel.app
-```
-
-**Important:** Replace `https://your-frontend.vercel.app` with your actual Vercel frontend URL.
-
-### 2. Get Your Render Backend URL
-
-After deploying on Render, you'll get a URL like:
-- `https://your-app-name.onrender.com`
-
-Copy this URL - you'll need it for the frontend.
-
----
-
-## Frontend (Vercel) Setup
-
-### 1. Environment Variables on Vercel
-
-In your Vercel dashboard, go to your project → Settings → Environment Variables → Add:
-
-```
-VITE_BACKEND_URL=https://your-app-name.onrender.com
-```
-
-**Important:** Replace `https://your-app-name.onrender.com` with your actual Render backend URL.
-
-### 2. Update the Code
-
-After setting the environment variable, you need to:
-
-1. **Update the fallback URL in the code** (temporary until Vercel picks up the env var):
-   - In `frontend/codeVault/src/pages/SignIn.jsx`, replace `'https://your-backend.onrender.com'` with your actual Render URL
-   - In `frontend/codeVault/src/pages/Home.jsx`, replace `'https://your-backend.onrender.com'` with your actual Render URL
-
-2. **Redeploy on Vercel** after setting the environment variable
-
----
-
-## Quick Fix for Current Issue
-
-If you're seeing "Server unreachable" right now, do this:
-
-1. **Get your Render backend URL** (e.g., `https://codevault-backend.onrender.com`)
-
-2. **Update Vercel Environment Variables:**
-   - Go to Vercel Dashboard → Your Project → Settings → Environment Variables
-   - Add: `VITE_BACKEND_URL` = `https://your-actual-render-url.onrender.com`
-   - Make sure to select "Production", "Preview", and "Development" environments
-
-3. **Update Render CORS:**
-   - Go to Render Dashboard → Your Backend Service → Environment Variables
-   - Add/Update: `FRONTEND_URL` = `https://your-actual-vercel-url.vercel.app`
-   - Redeploy the backend
-
-4. **Redeploy both:**
-   - Vercel will auto-redeploy when you push changes
-   - Render may need a manual redeploy after env var changes
-
----
-
-## Testing
-
-After deployment:
-
-1. **Test locally:**
-   ```bash
-   # Frontend
-   cd frontend/codeVault
-   npm run dev
-   
-   # Backend (if testing locally)
-   cd server
-   npm run dev
-   ```
-
-2. **Check browser console:**
-   - Open DevTools (F12)
-   - Look for "Backend URL:" in console logs
-   - Should show your Render URL in production
-
-3. **Test the connection:**
-   - Try signing up with a new account
-   - Check Network tab for failed requests
-   - Verify CORS headers in response
-
----
-
-## Troubleshooting
-
-### "Server unreachable" Error
-
-1. **Check environment variables are set correctly:**
-   - Vercel: `VITE_BACKEND_URL` should be your Render URL
-   - Render: `FRONTEND_URL` should be your Vercel URL
-
-2. **Verify CORS is configured:**
-   - Backend CORS should allow your Vercel domain
-   - Check browser console for CORS errors
-
-3. **Check Render service is running:**
-   - Render services sleep after inactivity
-   - First request may take 30-60 seconds to wake up
-
-4. **Verify URLs are correct:**
-   - No trailing slashes
-   - HTTPS (not HTTP) for production
-   - No typos in domain names
-
-### CORS Errors
-
-If you see CORS errors in the browser console:
-
-1. Update `FRONTEND_URL` in Render environment variables
-2. Redeploy the backend service
-3. Clear browser cache and cookies
-
-### Database Connection Issues
-
-If backend can't connect to database:
-
-1. Verify `DATABASE_URL` is set correctly in Render
-2. Check database is accessible (Neon PostgreSQL should be accessible)
-3. Run migrations: `npx prisma migrate deploy` (if needed)
-
----
-
-## Local Development
-
-For local development, create `.env` files:
-
-**Frontend** (`frontend/codeVault/.env`):
-```
-VITE_BACKEND_URL=http://localhost:3000
-```
-
-**Backend** (`server/.env`):
-```
-DATABASE_URL=postgresql://neondb_owner:npg_o1bpl0RzvCaw@ep-misty-queen-ahgfcx7j-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-JWT_SECRET=your_secret_key_here
-NODE_ENV=development
 PORT=3000
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=https://your-frontend-domain.com
+# Optional comma-separated allowlist:
+# FRONTEND_URLS=https://preview-1.vercel.app,https://preview-2.vercel.app
+# Optional for Vercel previews:
+# ALLOW_VERCEL_PREVIEWS=true
 ```
 
+## Recommended Split
 
+- Vercel for `frontend/codeVault`
+- Render or Railway for `server`
+- Managed PostgreSQL for the database
 
+## Vercel Frontend
 
+### Project settings
+
+- Import the repository into Vercel
+- Set the project root directory to `frontend/codeVault`
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+### Environment variables
+
+- `VITE_BACKEND_URL=https://your-api-domain.com`
+
+### Notes
+
+- If you deploy from a monorepo, create a dedicated Vercel project for the frontend directory
+- Preview deployments work well with the backend allowlist when `ALLOW_VERCEL_PREVIEWS=true`
+
+## Render Backend
+
+### Web service settings
+
+- Root directory: `server`
+- Runtime: `Node`
+- Build command: `npm install && npx prisma generate`
+- Start command: `npm run start`
+- Pre-deploy command: `npx prisma migrate deploy`
+
+### Environment variables
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `NODE_ENV=production`
+- `PORT=3000`
+- `FRONTEND_URL=https://your-frontend-domain.com`
+
+### Notes
+
+- Render supports monorepos cleanly when `rootDir` is set to `server`
+- Run Prisma deploy migrations during pre-deploy so schema changes land before the new release starts serving traffic
+
+## Railway Backend
+
+### Service settings
+
+- Service path / root directory: `server`
+- Build command override: `npm install && npx prisma generate`
+- Start command override: `npm run start`
+
+### Environment variables
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `NODE_ENV=production`
+- `PORT=3000`
+- `FRONTEND_URL=https://your-frontend-domain.com`
+
+### Migrations
+
+Run this before or during the first production deploy:
+
+```bash
+cd server
+npx prisma migrate deploy
+```
+
+If you prefer, you can make this part of your Railway release workflow.
+
+## Optional Render Frontend
+
+If you want both services on Render instead of Vercel + Render:
+
+- Create a Static Site
+- Root directory: `frontend/codeVault`
+- Build command: `npm install && npm run build`
+- Publish directory: `dist`
+- Environment variable: `VITE_BACKEND_URL=https://your-api-domain.com`
+
+## CI/CD Flow
+
+The repository includes `.github/workflows/ci.yml`.
+
+It validates:
+
+- frontend linting
+- frontend production build
+- Prisma client generation
+- Prisma schema validation
+- backend module imports
+
+Recommended release flow:
+
+1. Push a branch or open a pull request
+2. Let GitHub Actions pass
+3. Merge to `main`
+4. Let Vercel and Render/Railway auto-deploy from `main`
+
+## Post-Deploy Checklist
+
+1. Confirm `GET /health` returns a healthy response on the backend
+2. Verify browser login sets the secure cookie correctly
+3. Create a snippet, then test private, team, and public visibility
+4. Join a team with an invite code and confirm shared snippets appear
+5. Enable 2FA on a test account and verify login prompts for a code
+6. Check that notifications appear after comments or shared snippet updates

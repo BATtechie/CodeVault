@@ -1,5 +1,7 @@
+import { apiRequest } from '../config/api.js';
+
 // Cookie-only auth helpers.
-// We intentionally do NOT store tokens in localStorage to avoid XSS token theft.
+// We intentionally keep tokens out of localStorage so browser XSS does not expose session secrets.
 
 export const getAuthToken = () => null;
 export const setAuthToken = () => {};
@@ -7,16 +9,4 @@ export const removeAuthToken = () => {};
 
 export const getAuthHeaders = () => ({});
 
-export const fetchWithAuth = async (url, options = {}) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  return fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
-};
-
+export const fetchWithAuth = async (path, options = {}) => apiRequest(path, options);

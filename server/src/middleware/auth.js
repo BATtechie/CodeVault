@@ -1,79 +1,99 @@
-import jwt from 'jsonwebtoken';
 import prisma from '../db/prisma.js';
+import { sendError } from '../utils/http.js';
+import { verifySessionToken } from '../utils/security.js';
+
+const extractToken = (req) => {
+  const cookieToken = req.cookies?.token;
+
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return null;
+  }
+
+  if (/^bearer\s+/i.test(authHeader)) {
+    return authHeader.replace(/^bearer\s+/i, '').trim();
+  }
+
+  return authHeader.trim();
+};
+
+const loadSessionUser = async (token) => {
+  const decoded = verifySessionToken(token);
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.sub },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      sessionVersion: true,
+      rememberMeDefault: true,
+      twoFactorEnabled: true,
+      createdAt: true,
+      updatedAt: true,
+      lastLoginAt: true,
+    },
+  });
+
+  if (!user || user.sessionVersion !== decoded.sessionVersion) {
+    return null;
+  }
+
+  const { sessionVersion: _sessionVersion, ...publicUser } = user;
+  return publicUser;
+};
 
 export const authMiddleware = async (req, res, next) => {
   try {
-    // Try to get token from cookie first, then Authorization header
-    let token = req.cookies?.token;
-    
-    // Debug logging in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Auth middleware - Cookie token:', token ? 'Present' : 'Missing');
-      console.log('Auth middleware - Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
-    }
-    
-    // If no cookie, try Authorization header (case-insensitive)
-    if (!token) {
-      const authHeader = req.headers.authorization || req.headers['authorization'] || req.headers['Authorization'];
-      
-      if (authHeader) {
-        // Handle both "Bearer token" and "bearer token" formats
-        if (authHeader.startsWith('Bearer ') || authHeader.startsWith('bearer ')) {
-          token = authHeader.split(' ')[1];
-        } else if (authHeader.startsWith('BEARER ')) {
-          token = authHeader.split(' ')[1];
-        } else {
-          // If no Bearer prefix, assume the whole header is the token
-          token = authHeader.trim();
-        }
-        
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('Auth middleware - Extracted token from header:', token ? 'Present' : 'Missing');
-        }
-      }
-    }
+    const token = extractToken(req);
 
     if (!token) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Auth middleware - No token found');
-      }
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Authentication required' 
+      return sendError(res, {
+        status: 401,
+        message: 'Authentication required.',
       });
     }
 
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Fetch full user data from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    });
+    const user = await loadSessionUser(token);
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
+      return sendError(res, {
+        status: 401,
+        message: 'Your session is no longer valid. Please sign in again.',
       });
     }
-    
+
     req.user = user;
-    next();
-  } catch (error) {
-    res.status(401).json({ success: false, message: 'Invalid or expired session' });
+    return next();
+  } catch (_error) {
+    return sendError(res, {
+      status: 401,
+      message: 'Invalid or expired session.',
+    });
   }
+};
+
+export const optionalAuthMiddleware = async (req, _res, next) => {
+  try {
+    const token = extractToken(req);
+
+    if (!token) {
+      return next();
+    }
+
+    const user = await loadSessionUser(token);
+
+    if (user) {
+      req.user = user;
+    }
+  } catch (_error) {
+    req.user = null;
+  }
+
+  return next();
 };

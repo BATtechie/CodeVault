@@ -1,0 +1,123 @@
+.snippet-editor {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border-radius: 1.75rem;
+  border: 1px solid var(--border-soft);
+  background:
+    radial-gradient(circle at top right, rgba(135, 96, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 247, 252, 0.96));
+  box-shadow: var(--shadow-card);
+}
+
+.snippet-editor__header,
+.snippet-editor__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.snippet-editor__header {
+  margin-bottom: 1.2rem;
+}
+
+.snippet-editor__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-emphasis);
+}
+
+.snippet-editor__header h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.1rem + 1vw, 2rem);
+  color: var(--text-primary);
+}
+
+.snippet-editor__header p,
+.snippet-editor__footer p {
+  margin: 0.45rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.snippet-editor__form {
+  display: grid;
+  gap: 1rem;
+}
+
+.snippet-editor__grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.snippet-editor label {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.snippet-editor label span {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.snippet-editor__code {
+  min-height: 22rem;
+  font-family: var(--font-mono);
+}
+
+.snippet-editor__ghost,
+.snippet-editor__primary {
+  border-radius: 999px;
+  padding: 0.8rem 1.1rem;
+  font: inherit;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.snippet-editor__ghost {
+  background: white;
+  color: var(--text-primary);
+  border: 1px solid var(--border-soft);
+}
+
+.snippet-editor__primary {
+  border: none;
+  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: var(--shadow-button);
+}
+
+.snippet-editor__ghost:hover,
+.snippet-editor__primary:hover {
+  transform: translateY(-1px);
+}
+
+.snippet-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.snippet-editor__error {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(181, 52, 87, 0.16);
+  background: rgba(181, 52, 87, 0.08);
+  color: #9f2143;
+}
+
+@media (min-width: 760px) {
+  .snippet-editor__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .snippet-editor__header,
+  .snippet-editor__footer {
+    flex-direction: column;
+  }
+}

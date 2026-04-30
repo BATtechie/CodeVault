@@ -1,248 +1,153 @@
-import React, { useState } from 'react';
+import { ArrowRight, Search, ShieldCheck, Sparkles, Users2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import CodeBlock from '../components/CodeBlock';
+import useAuth from '../hooks/useAuth.js';
 import './Home.css';
-import { API_BASE_URL } from '../config/api.js';
+
+const featureCards = [
+  {
+    title: 'Searchable by intent',
+    description: 'Find snippets by title, tags, language, code fragments, visibility, or team context.',
+    icon: Search,
+  },
+  {
+    title: 'Built for real teams',
+    description: 'Private, public, and team-scoped snippets make sharing precise instead of risky.',
+    icon: Users2,
+  },
+  {
+    title: 'Security-first sessions',
+    description: 'Remember-me sessions, JWT hardening, notifications, and optional two-factor auth are built in.',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'Review-ready workflow',
+    description: 'Comments and update alerts turn saved code into a lightweight collaboration system.',
+    icon: Sparkles,
+  },
+];
+
+const heroCode = `export async function saveSnippet(snippet) {
+  const response = await apiRequest('/api/snippets', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: snippet.title,
+      language: snippet.language,
+      visibility: snippet.visibility,
+      tags: snippet.tags,
+      code: snippet.code,
+    }),
+  });
+
+  return response.data;
+}`;
 
 const Home = () => {
   const navigate = useNavigate();
-  const [isChecking, setIsChecking] = useState(false);
-
-  const checkAuthAndRedirect = async () => {
-    setIsChecking(true);
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/auth/me`,
-        {
-          method: 'GET',
-          credentials: 'include', // Important: include cookies
-        }
-      );
-
-      if (res.ok) {
-        // User is authenticated, redirect to Dashboard
-        navigate('/dashboard');
-      } else {
-        // User is not authenticated, redirect to sign-in page
-        navigate('/sign-in');
-      }
-    } catch (error) {
-      // On error, assume not authenticated and redirect to sign-in
-      console.error('Auth check failed:', error);
-      navigate('/sign-in');
-    } finally {
-      setIsChecking(false);
-    }
-  };
+  const { user } = useAuth();
 
   return (
-    <div className="home">
-      <div className="hero-section">
-        <div className="badge">
-          <span className="badge-dot"></span>
-          The #1 Code Snippet Manager
-        </div>
-        
-        <h1 className="hero-title">
-          Never Search for Code
-          <br />
-          <span className="hero-title-accent">Twice Again</span>
-        </h1>
-        
-        <p className="hero-description">
-          CodeVault is your personal code library. Save, search, and share
-          your most useful code snippets with syntax highlighting, team
-          collaboration, and smart organization.
-        </p>
-        
-        <div className="hero-buttons">
-          <button 
-            className="btn-primary" 
-            onClick={checkAuthAndRedirect}
-            disabled={isChecking}
-          >
-            {isChecking ? 'Loading...' : 'Get Started'}
-            {!isChecking && <span className="arrow">→</span>}
-          </button>
-          <button className="btn-secondary">View Demo</button>
-        </div>
-        
-        <div className="preview-card">
-          <div className="preview-icon">
-            <span>&lt;/&gt;</span>
+    <div className="home-v2">
+      <section className="home-v2__hero">
+        <div className="home-v2__hero-copy">
+          <span className="home-v2__pill">Market-ready snippet workflow</span>
+          <h1>
+            Organize every useful
+            <span>code snippet like product knowledge.</span>
+          </h1>
+          <p>
+            CodeVault gives developers a polished place to capture snippets, search them fast,
+            collaborate with comments, and share safely across private, public, and team
+            workspaces.
+          </p>
+
+          <div className="home-v2__hero-actions">
+            <button
+              type="button"
+              className="home-v2__primary"
+              onClick={() => navigate(user ? '/dashboard' : '/sign-in', { state: { mode: 'signup' } })}
+            >
+              {user ? 'Open workspace' : 'Start organizing'}
+              <ArrowRight size={18} />
+            </button>
+            <button
+              type="button"
+              className="home-v2__secondary"
+              onClick={() => navigate('/snippets')}
+            >
+              Browse community snippets
+            </button>
           </div>
-          <p className="preview-text">Dashboard Preview</p>
-        </div>
-      </div>
-      
-      <div className="problem-section">
-        <h2 className="problem-title">The Problem</h2>
-        <p className="problem-description">
-          Developers constantly reuse code patterns but waste time
-          searching for solutions they've already written.
-        </p>
-        
-        <div className="problem-grid">
-          <div className="problem-card">
-            <div className="problem-icon">
-              <span>✕</span>
+
+          <div className="home-v2__stats">
+            <div>
+              <strong>3 views</strong>
+              <span>Private, team, public</span>
             </div>
-            <h3 className="problem-card-title">Scattered Snippets</h3>
-            <p className="problem-card-description">
-              Code scattered across text files, notes apps, and old projects with no organization.
-            </p>
-          </div>
-          
-          <div className="problem-card">
-            <div className="problem-icon">
-              <span>✕</span>
+            <div>
+              <strong>2FA-ready</strong>
+              <span>Remember-me sessions included</span>
             </div>
-            <h3 className="problem-card-title">Lost Knowledge</h3>
-            <p className="problem-card-description">
-              Teams lose valuable knowledge when members leave. No centralized knowledge base.
-            </p>
-          </div>
-          
-          <div className="problem-card">
-            <div className="problem-icon">
-              <span>✕</span>
+            <div>
+              <strong>Fast discovery</strong>
+              <span>Fuzzy search and structured filters</span>
             </div>
-            <h3 className="problem-card-title">Poor Organization</h3>
-            <p className="problem-card-description">
-              GitHub Gists lack proper organization. Note apps don't support code highlighting.
-            </p>
-          </div>
-          
-          <div className="problem-card">
-            <div className="problem-icon">
-              <span>✕</span>
-            </div>
-            <h3 className="problem-card-title">No Collaboration</h3>
-            <p className="problem-card-description">
-              Difficult to share knowledge with team members and build a shared code library.
-            </p>
           </div>
         </div>
-      </div>
-      
-      <div className="solution-section">
-        <h2 className="solution-title">The CodeVault Solution</h2>
-        <p className="solution-description">
-          A centralized platform to save, search, and share code snippets
-          with your team.
-        </p>
-        
-        <div className="solution-grid">
-          <div className="solution-card">
-            <div className="solution-icon">
-              <span>✓</span>
-            </div>
-            <h3 className="solution-card-title">Centralized Storage</h3>
-            <p className="solution-card-description">
-              All snippets in one place with intelligent tagging and categorization.
-            </p>
-          </div>
-          
-          <div className="solution-card">
-            <div className="solution-icon">
-              <span>✓</span>
-            </div>
-            <h3 className="solution-card-title">Team Knowledge Base</h3>
-            <p className="solution-card-description">
-              Build a shared library of solutions that grows with your team.
-            </p>
-          </div>
-          
-          <div className="solution-card">
-            <div className="solution-icon">
-              <span>✓</span>
-            </div>
-            <h3 className="solution-card-title">Beautiful Formatting</h3>
-            <p className="solution-card-description">
-              Syntax highlighting for 100+ languages with clean, readable code display.
-            </p>
-          </div>
-          
-          <div className="solution-card">
-            <div className="solution-icon">
-              <span>✓</span>
-            </div>
-            <h3 className="solution-card-title">Easy Sharing</h3>
-            <p className="solution-card-description">
-              Share snippets with team members or make them public to help others.
-            </p>
-          </div>
+
+        <div className="home-v2__hero-preview">
+          <CodeBlock
+            code={heroCode}
+            language="TYPESCRIPT"
+            title="Snippet save flow"
+          />
         </div>
-      </div>
-      
-      <div className="features-section">
-        <h2 className="features-title">Powerful Features</h2>
-        <p className="features-description">
-          Everything you need to manage, organize, and share your code
-          snippets efficiently.
-        </p>
-        
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">
-              <span>&lt;/&gt;</span>
-            </div>
-            <h3 className="feature-card-title">Smart Code Storage</h3>
-            <p className="feature-card-description">
-              Save and organize all your code snippets in one centralized location with intelligent tagging and organization.
-            </p>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <span>🔍</span>
-            </div>
-            <h3 className="feature-card-title">Powerful Search</h3>
-            <p className="feature-card-description">
-              Find exactly what you need with advanced search, filtering, and categorization across all your snippets.
-            </p>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <span>⚡</span>
-            </div>
-            <h3 className="feature-card-title">Syntax Highlighting</h3>
-            <p className="feature-card-description">
-              Beautiful code formatting with support for 100+ programming languages using Prism.js.
-            </p>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <span>🔗</span>
-            </div>
-            <h3 className="feature-card-title">Easy Sharing</h3>
-            <p className="feature-card-description">
-              Share snippets with team members or make them public to help others with common solutions.
-            </p>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <span>👥</span>
-            </div>
-            <h3 className="feature-card-title">Team Collaboration</h3>
-            <p className="feature-card-description">
-              Work together with your team, share knowledge, and build a company-wide code knowledge base.
-            </p>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <span>🔒</span>
-            </div>
-            <h3 className="feature-card-title">Secure & Private</h3>
-            <p className="feature-card-description">
-              Your code is encrypted and secure. Control access with granular permissions and privacy settings.
-            </p>
-          </div>
+      </section>
+
+      <section className="home-v2__story">
+        <div className="home-v2__story-card">
+          <h2>Why teams outgrow notes and gists</h2>
+          <p>
+            Reusable code becomes hard to trust when it lives in Slack threads, personal files,
+            and half-remembered repos. CodeVault turns those fragments into a curated workspace
+            with ownership, permissions, and search that scales with your team.
+          </p>
         </div>
-      </div>
+        <div className="home-v2__story-grid">
+          {featureCards.map((feature) => {
+            const IconComponent = feature.icon;
+
+            return (
+              <article key={feature.title} className="home-v2__feature-card">
+                <span className="home-v2__feature-icon">
+                  <IconComponent size={18} />
+                </span>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="home-v2__cta">
+        <div>
+          <p className="home-v2__pill home-v2__pill--dark">Ready to ship</p>
+          <h2>Set up once, then let your snippet library compound.</h2>
+          <p>
+            From personal workflow to team collaboration, the platform is prepared for production
+            deployment with Prisma, Express, React, and environment-specific configuration.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="home-v2__primary"
+          onClick={() => navigate(user ? '/dashboard' : '/sign-in', { state: { mode: 'signup' } })}
+        >
+          Launch CodeVault
+          <ArrowRight size={18} />
+        </button>
+      </section>
     </div>
   );
 };

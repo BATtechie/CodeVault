@@ -1,327 +1,393 @@
-# CodeVault – A Developer Code Snippet Management System
+# CodeVault
 
-A platform for developers to store, organize, and browse reusable code snippets.
+CodeVault is a full-stack code snippet management system for developers and teams. It supports secure authentication, private and team-scoped snippet sharing, public snippet discovery, inline review comments, notifications, fuzzy search, and a mobile-friendly React workspace.
 
----
+## What’s Included
 
-## 🎯 Problem Statement
+- Clean landing page and responsive workspace UI
+- Cookie-based JWT authentication with remember-me support
+- Optional two-factor authentication with backup codes
+- Private, public, and team snippet visibility
+- Team creation and invite-code joins
+- Review comments and update notifications
+- Fuzzy snippet search with filters for language, visibility, team, and scope
+- Prisma + PostgreSQL schema designed for growth and indexed lookups
+- CI workflow for frontend and backend validation
 
-Developers constantly reuse code patterns but waste time searching for solutions they've already written. Snippets get scattered across text files, notes apps, or old projects. Teams lose valuable knowledge when members leave. 
-
-**GitHub Gists** lacks proper organization, while **note apps** don't support code highlighting. 
-
-**CodeVault** solves this by providing a centralized platform to:
-- Save and organize code snippets
-- Search with syntax highlighting
-- Tag and categorize code
-- Share with team members
-- Collaborate seamlessly
-
----
-
-## ✨ Key Features
-
-| Category | Features |
-|----------|----------|
-| **Authentication** | Signup, login, logout, protected routes (cookie-based session) |
-| **Snippets** | Create, read, update, delete your own snippets |
-| **Public browsing** | Browse public snippets shared by users |
-| **Search (basic)** | Search by title/language/tags (client-side) |
-
----
-
-## 🛠️ Tech Stack
+## Stack
 
 ### Frontend
-- **React.js** – UI library
-- **React Router DOM** – Client-side routing
-- **Fetch API** – HTTP client
-- **CSS** – Styling
+
+- React 19
+- React Router 7
+- Vite
+- Plain CSS with reusable UI components
+- `lucide-react` icons
 
 ### Backend
-- **Node.js** – Runtime environment
-- **Express.js** – Web framework (Express v5)
-- **Prisma ORM** – Database ORM
-- **Helmet** – Security headers
-- **express-rate-limit** – Basic abuse protection for auth endpoints
-- **dotenv** – Environment variable management
-- **nodemon** – Development hot-reload
 
-### Database
-- **PostgreSQL** – Relational database (via Prisma)
+- Node.js
+- Express 5
+- Prisma ORM
+- PostgreSQL
+- `jsonwebtoken`
+- `bcrypt`
+- `helmet`
+- `cors`
+- `express-rate-limit`
 
-### Authentication
-- **JWT (jsonwebtoken)** – Stored in an `httpOnly` cookie (cookie-based session)
-- **bcrypt** – Password hashing
+## Project Structure
 
-### Hosting
-- **Frontend:** Vercel / Netlify
-- **Backend:** Render / Railway
-- **Database:** Railway / PlanetScale / Aiven
-
----
-
-## 🏗️ System Architecture
-
-```
-┌─────────────────┐
-│   Frontend      │
-│   (React.js)    │
-└────────┬────────┘
-         │ Axios
-         ▼
-┌─────────────────┐
-│   Backend API   │
-│  (Express.js)   │
-└────────┬────────┘
-         │ Prisma ORM
-         ▼
-┌─────────────────┐
-│   MySQL DB      │
-└─────────────────┘
+```text
+CodeVault/
+├── .github/workflows/ci.yml
+├── frontend/codeVault/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   └── config/
+│   ├── .env.example
+│   └── package.json
+├── server/
+│   ├── prisma/
+│   │   ├── migrations/
+│   │   └── schema.prisma
+│   ├── src/
+│   │   ├── controllers/
+│   │   ├── db/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   └── utils/
+│   ├── .env.example
+│   └── package.json
+└── README.md
 ```
 
-### Authentication Flow
-- JWT-based authentication
-- Passwords hashed with bcrypt
-- Protected routes with middleware validation
-- Role-based access control (admin/user)
+## Core Concepts
 
----
+### Snippet Visibility
 
-## 🚀 Project Setup
+- `PRIVATE`: visible only to the owner and explicitly granted editors
+- `TEAM`: visible to members of the selected team
+- `PUBLIC`: visible in the community library
+
+### Team Roles
+
+- `OWNER`: full control over the team and its team-shared snippets
+- `ADMIN`: elevated team management access
+- `MEMBER`: can view and contribute within team boundaries
+
+### Notifications
+
+Notifications are generated when:
+
+- someone comments on a snippet you own or collaborate on
+- a shared snippet is updated
+- a new member joins your team
+
+## Local Setup
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- MySQL database
-- Git
 
-### Installation
+- Node.js 20+
+- npm
+- PostgreSQL
 
-#### 1. Clone the Repository
+### 1. Clone and install
+
 ```bash
-git clone https://github.com/BATtechie/CodeVault.git
+git clone <your-repo-url>
 cd CodeVault
 ```
 
-#### 2. Setup Frontend
-```bash
-cd frontend/codeVault
-npm install
-```
-
-Create `.env.local` file:
-```env
-VITE_BACKEND_URL=http://localhost:3000
-```
-
-Start frontend:
-```bash
-npm run dev
-```
-
-#### 3. Setup Backend
 ```bash
 cd server
 npm install
 ```
 
-Create `.env` file:
+```bash
+cd ../frontend/codeVault
+npm install
+```
+
+### 2. Configure environment variables
+
+Backend: `server/.env`
+
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/codevault"
-JWT_SECRET="your-secret-key-here"
+JWT_SECRET="replace-with-a-long-random-secret"
 PORT=3000
 NODE_ENV=development
+FRONTEND_URL="http://localhost:5173"
 ```
 
-Setup database:
-```bash
-npx prisma generate
-npx prisma migrate dev
-```
+Frontend: `frontend/codeVault/.env`
 
-Start backend:
-```bash
-npm run dev
-```
-
-The frontend will run on `http://localhost:5173` and backend on `http://localhost:3000`
-
----
-
-## 📡 API Overview
-
-### Authentication Endpoints
-
-| Endpoint | Method | Description | Access |
-|----------|--------|-------------|--------|
-| `/api/auth/signup` | POST | Register new user | Public |
-| `/api/auth/login` | POST | Authenticate user | Public |
-| `/api/auth/me` | GET | Get current user | Authenticated |
-| `/api/auth/me` | PUT | Update current user | Authenticated |
-| `/api/auth/logout` | POST | Clear session cookie | Public |
-
-### Snippet Endpoints
-
-| Endpoint | Method | Description | Access |
-|----------|--------|-------------|--------|
-| `/api/snippets` | GET | Get all user snippets | Authenticated |
-| `/api/snippets/:id` | GET | Get single snippet | Authenticated |
-| `/api/snippets` | POST | Create new snippet | Authenticated |
-| `/api/snippets/:id` | PUT | Update snippet | Authenticated |
-| `/api/snippets/:id` | DELETE | Delete snippet | Authenticated |
-| `/api/snippets/public` | GET | Browse public snippets | Public |
-
----
-
-## 📂 Project Structure
-
-```
-CodeVault/
-├── frontend/
-│   └── codeVault/
-│       ├── src/
-│       │   ├── pages/
-│       │   │   ├── LandingPage.jsx
-│       │   │   ├── LandingPage.css
-│       │   │   ├── SignIn.jsx
-│       │   │   └── SignIn.css
-│       │   ├── App.jsx
-│       │   ├── main.jsx
-│       │   ├── index.css
-│       │   └── App.css
-│       ├── package.json
-│       └── vite.config.js
-│
-├── server/
-│   ├── src/
-│   │   ├── controllers/
-│   │   │   └── auth.controller.js
-│   │   ├── routes/
-│   │   │   └── auth.routes.js
-│   │   ├── middleware/
-│   │   │   └── auth.js
-│   │   ├── db/
-│   │   │   └── prisma.js
-│   │   └── index.js
-│   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── migrations/
-│   ├── package.json
-│   └── .env
-│
-└── README.md
-```
-
----
-
-## 🔐 Environment Variables
-
-### Frontend (`.env.local`)
 ```env
 VITE_BACKEND_URL=http://localhost:3000
 ```
 
-### Backend (`.env`)
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/codevault"
+### 3. Prepare the database
 
-# JWT
-JWT_SECRET="your-super-secret-key-change-this"
-
-# Server
-PORT=3000
-NODE_ENV=development
+```bash
+cd server
+npx prisma generate
+npx prisma migrate dev
 ```
 
----
+### 4. Start the apps
 
-## 🌐 Deployment
+Backend:
 
-### Frontend Deployment (Vercel)
+```bash
+cd server
+npm run dev
+```
 
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Set environment variables:
-   ```
-   VITE_BACKEND_URL=https://api.yourdom.com
-   ```
-4. Deploy (automatic on push)
+Frontend:
 
-### Backend Deployment (Render)
+```bash
+cd frontend/codeVault
+npm run dev
+```
 
-1. Create account on Render
-2. Connect GitHub repository
-3. Set environment variables:
-   ```
-   DATABASE_URL=your-mysql-connection-string
-   JWT_SECRET=your-jwt-secret
-   NODE_ENV=production
-   ```
-4. Deploy
+Frontend runs on `http://localhost:5173`. Backend runs on `http://localhost:3000`.
 
-### Database (PlanetScale or Railway)
+## Useful Scripts
 
-1. Create MySQL database instance
-2. Update `DATABASE_URL` in backend `.env`
-3. Run migrations: `npx prisma migrate deploy`
+### Frontend
 
----
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run check
+```
 
-## 📝 Usage
+### Backend
 
-### Creating a Snippet
+```bash
+npm run dev
+npm run start
+npm run prisma:generate
+npm run prisma:validate
+npm run check:imports
+npm test
+```
 
-1. Login to CodeVault
-2. Navigate to Dashboard
-3. Click "Create New Snippet"
-4. Fill in:
-   - Title
-   - Description
-   - Code content
-   - Programming language
-   - Tags
-   - Visibility (Public/Private/Team)
-5. Click "Save"
+## Authentication Flow
 
-### Searching Snippets
+### Login
 
-- Use the search bar on Dashboard
-- Search by title, description, or code content
-- Results update in real-time (debounced)
+`POST /api/auth/login`
 
-### Sharing with Teams
+Request body:
 
-1. Create or join a team
-2. Create a snippet and set visibility to "Team"
-3. Team members can view and collaborate
+```json
+{
+  "email": "dev@example.com",
+  "password": "super-secure-password",
+  "rememberMe": true,
+  "twoFactorCode": "123456"
+}
+```
 
----
+Behavior:
 
-## 🤝 Contributing
+- returns a session cookie on success
+- returns `twoFactorRequired: true` when 2FA is enabled but no code is provided
+- accepts either a 6-digit TOTP code or a backup code when 2FA is enabled
 
-Contributions are welcome! Please follow these steps:
+### Signup
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+`POST /api/auth/signup`
 
----
+Request body:
 
-## 📄 License
+```json
+{
+  "name": "Dev User",
+  "email": "dev@example.com",
+  "password": "super-secure-password",
+  "rememberMe": true
+}
+```
 
-This project is licensed under the MIT License – see the LICENSE file for details.
+Behavior:
 
----
+- creates the user
+- immediately creates a secure session cookie
 
-## 📞 Support
+### Session endpoints
 
-For issues, questions, or suggestions, please open an issue on GitHub or contact the development team.
+- `GET /api/auth/me`
+- `PUT /api/auth/me`
+- `POST /api/auth/logout`
 
----
+### Two-factor endpoints
 
-**Made with ❤️ by CodeVault Team**
+- `POST /api/auth/2fa/setup`
+- `POST /api/auth/2fa/enable`
+- `POST /api/auth/2fa/disable`
+
+`/2fa/setup` returns:
+
+```json
+{
+  "success": true,
+  "data": {
+    "secret": "BASE32SECRET",
+    "otpauthUrl": "otpauth://totp/...",
+    "backupCodes": ["1234-5678", "...."]
+  }
+}
+```
+
+## API Overview
+
+All API responses follow this shape:
+
+```json
+{
+  "success": true,
+  "message": "Optional human-readable message",
+  "data": {},
+  "meta": {}
+}
+```
+
+Error responses:
+
+```json
+{
+  "success": false,
+  "message": "Meaningful error message"
+}
+```
+
+### Auth
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/api/auth/signup` | Register and create a session |
+| `POST` | `/api/auth/login` | Sign in, optionally complete 2FA |
+| `POST` | `/api/auth/logout` | Clear the session cookie |
+| `GET` | `/api/auth/me` | Get current user and summary |
+| `PUT` | `/api/auth/me` | Update profile and session preference |
+| `POST` | `/api/auth/2fa/setup` | Generate a TOTP secret and backup codes |
+| `POST` | `/api/auth/2fa/enable` | Enable 2FA with a valid code |
+| `POST` | `/api/auth/2fa/disable` | Disable 2FA with a valid code |
+
+### Snippets
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/snippets` | Get accessible snippets for the current user |
+| `GET` | `/api/snippets/:id` | Get a specific accessible snippet |
+| `POST` | `/api/snippets` | Create a snippet |
+| `PUT` | `/api/snippets/:id` | Update a snippet |
+| `DELETE` | `/api/snippets/:id` | Delete a snippet |
+| `GET` | `/api/snippets/public` | Browse public snippets |
+| `GET` | `/api/snippets/:id/comments` | List comments for a snippet |
+| `POST` | `/api/snippets/:id/comments` | Add a comment to a snippet |
+
+### Snippet query parameters
+
+Supported on `GET /api/snippets`:
+
+- `q`
+- `scope=workspace|mine|shared|team`
+- `language`
+- `visibility`
+- `teamId`
+- `page`
+- `limit`
+- `sortBy=createdAt|updatedAt|title|language`
+- `sortOrder=asc|desc`
+
+Supported on `GET /api/snippets/public`:
+
+- `q`
+- `language`
+- `tag`
+- `page`
+- `limit`
+
+### Teams
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/teams` | List the user’s teams |
+| `POST` | `/api/teams` | Create a team |
+| `POST` | `/api/teams/join` | Join a team with an invite code |
+
+### Notifications
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/notifications` | List notifications |
+| `PATCH` | `/api/notifications/:id/read` | Mark one notification as read |
+| `PATCH` | `/api/notifications/read-all` | Mark all notifications as read |
+
+## Database Notes
+
+The Prisma schema includes:
+
+- users with role, session, and 2FA state
+- teams and team memberships
+- snippets with visibility and ownership
+- snippet collaborators
+- comments
+- notifications
+
+Indexes are included for common growth paths:
+
+- user + updated snippet lookups
+- visibility + updated snippet lookups
+- team snippet lookups
+- language lookups
+- title search
+- notification reads
+- comment history
+
+The latest migration also creates PostgreSQL search indexes for:
+
+- snippet title trigram matching
+- snippet code trigram matching
+- snippet tag array lookups
+
+## Deployment
+
+Deployment details live in [DEPLOYMENT.md](./DEPLOYMENT.md). The short version:
+
+- Frontend: deploy `frontend/codeVault` to Vercel
+- Backend: deploy `server` to Render or Railway
+- Database: provision PostgreSQL and run `npx prisma migrate deploy`
+- CI: GitHub Actions validates frontend lint/build and backend Prisma/module integrity
+
+## CI
+
+The workflow at `.github/workflows/ci.yml` runs on pushes and pull requests:
+
+- frontend lint
+- frontend production build
+- Prisma client generation
+- Prisma schema validation
+- backend module import checks
+
+## Contributor Notes
+
+- Keep snippet visibility rules aligned across frontend filters and backend access checks.
+- Use cookie-based auth only. Tokens are intentionally not stored in localStorage.
+- When changing Prisma models, add a migration and regenerate the client.
+- Prefer reusable UI components over page-local duplication.
+
+## Current Validation
+
+The project was validated with:
+
+- `frontend/codeVault`: `npm run lint`, `npm run build`
+- `server`: `npx prisma validate`, `npx prisma generate`, backend import checks

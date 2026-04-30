@@ -1,68 +1,42 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
 import './Footer.css';
 
-const Footer = () => {
-  const currentYear = new Date().getFullYear();
-
-  return (
-    <footer className="footer">
-      <div className="footer-container">
-        <div className="footer-content">
-          <div className="footer-section">
-            <div className="footer-logo">
-              <div className="footer-logo-icon">
-                <span>&lt;/&gt;</span>
-              </div>
-              <span className="footer-logo-text">CodeVault</span>
-            </div>
-            <p className="footer-tagline">
-              Your personal code snippet library. Save, search, and share your code efficiently.
-            </p>
-          </div>
-
-          <div className="footer-section">
-            <h4 className="footer-heading">Product</h4>
-            <ul className="footer-links">
-              <li><a href="#features">Features</a></li>
-              <li><a href="#pricing">Pricing</a></li>
-              <li><a href="#documentation">Documentation</a></li>
-              <li><a href="#api">API</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-section">
-            <h4 className="footer-heading">Company</h4>
-            <ul className="footer-links">
-              <li><a href="#about">About</a></li>
-              <li><a href="#blog">Blog</a></li>
-              <li><a href="#careers">Careers</a></li>
-              <li><a href="#contact">Contact</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-section">
-            <h4 className="footer-heading">Legal</h4>
-            <ul className="footer-links">
-              <li><a href="#privacy">Privacy Policy</a></li>
-              <li><a href="#terms">Terms of Service</a></li>
-              <li><a href="#security">Security</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="footer-bottom">
-          <p className="footer-copyright">
-            © {currentYear} CodeVault. All rights reserved.
+const Footer = () => (
+  <footer className="footer-v2">
+    <div className="footer-v2__inner">
+      <div className="footer-v2__brand">
+        <div className="footer-v2__mark">&lt;/&gt;</div>
+        <div>
+          <strong>CodeVault</strong>
+          <p>
+            A polished snippet workspace for personal libraries, shared team knowledge, and
+            searchable code you can trust.
           </p>
-          <div className="footer-social">
-            <a href="#twitter" aria-label="Twitter">Twitter</a>
-            <a href="#github" aria-label="GitHub">GitHub</a>
-            <a href="#linkedin" aria-label="LinkedIn">LinkedIn</a>
-          </div>
         </div>
       </div>
-    </footer>
-  );
-};
+
+      <div className="footer-v2__links">
+        <div>
+          <span>Explore</span>
+          <Link to="/">Home</Link>
+          <Link to="/snippets">Community snippets</Link>
+          <Link to="/dashboard">Workspace</Link>
+        </div>
+        <div>
+          <span>Build</span>
+          <a href="https://vercel.com" target="_blank" rel="noreferrer">
+            Vercel-ready frontend
+          </a>
+          <a href="https://render.com" target="_blank" rel="noreferrer">
+            Render or Railway backend
+          </a>
+          <a href="https://www.prisma.io" target="_blank" rel="noreferrer">
+            Prisma + PostgreSQL
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+);
 
 export default Footer;

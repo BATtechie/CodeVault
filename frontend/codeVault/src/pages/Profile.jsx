@@ -1,256 +1,279 @@
-import React, { useState, useEffect } from 'react';
+import { ShieldCheck, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '../config/api.js';
+import useAuth from '../hooks/useAuth.js';
 import './Profile.css';
-import { API_BASE_URL } from '../config/api.js';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '' });
+  const {
+    user,
+    summary,
+    updateProfile,
+    logout,
+    setupTwoFactor,
+    enableTwoFactor,
+    disableTwoFactor,
+  } = useAuth();
+  const [formState, setFormState] = useState({
+    name: '',
+    email: '',
+    rememberMeDefault: true,
+  });
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [twoFactorSetup, setTwoFactorSetup] = useState(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          method: 'GET',
-          credentials: 'include',
-        });
+    if (user) {
+      setFormState({
+        name: user.name || '',
+        email: user.email || '',
+        rememberMeDefault: user.rememberMeDefault ?? true,
+      });
+    }
+  }, [user]);
 
-        if (!res.ok) {
-          if (res.status === 401) {
-            navigate('/sign-in');
-            return;
-          }
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to fetch profile');
-        }
+  if (!user) {
+    return null;
+  }
 
-        const data = await res.json();
-        if (data.success) {
-          setUser(data.data);
-          setFormData({
-            name: data.data.name || '',
-            email: data.data.email || ''
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        setError('Failed to load profile. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const initials = (user.name || user.email)
+    .split(' ')
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
 
-    fetchProfile();
-  }, [navigate]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    setError('');
-    setSuccess('');
-  };
-
-  const handleSave = async () => {
-    setError('');
-    setSuccess('');
+  const handleSave = async (event) => {
+    event.preventDefault();
     setSaving(true);
+    setError('');
+    setSuccess('');
 
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-
-      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: 'PUT',
-        headers: headers,
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || 'Failed to update profile');
-        setSaving(false);
-        return;
-      }
-
-      if (data.success) {
-        setUser(data.data);
-        setSuccess('Profile updated successfully!');
-        setIsEditing(false);
-        setTimeout(() => setSuccess(''), 3000);
-      }
-    } catch (err) {
-      console.error('Error updating profile:', err);
-      setError('Server unreachable. Please try again.');
+      await updateProfile(formState);
+      setSuccess('Profile updated successfully.');
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, 'Unable to update your profile right now.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleLogout = async () => {
+  const handleSetupTwoFactor = async () => {
+    setError('');
+    setSuccess('');
+    setTwoFactorBusy(true);
+
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (err) {
-      console.error('Logout error:', err);
+      const data = await setupTwoFactor();
+      setTwoFactorSetup(data);
+      setSuccess('Two-factor setup generated. Verify one code to enable it.');
+    } catch (setupError) {
+      setError(getErrorMessage(setupError, 'Unable to start two-factor setup right now.'));
     } finally {
-      navigate('/');
+      setTwoFactorBusy(false);
     }
   };
 
-  const handleCancel = () => {
-    setFormData({
-      name: user?.name || '',
-      email: user?.email || ''
-    });
-    setIsEditing(false);
+  const handleEnableTwoFactor = async () => {
     setError('');
     setSuccess('');
+    setTwoFactorBusy(true);
+
+    try {
+      await enableTwoFactor(twoFactorCode);
+      setTwoFactorSetup(null);
+      setTwoFactorCode('');
+      setSuccess('Two-factor authentication enabled.');
+    } catch (setupError) {
+      setError(getErrorMessage(setupError, 'Unable to enable two-factor authentication.'));
+    } finally {
+      setTwoFactorBusy(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="profile-container">
-        <div className="profile-card">
-          <div className="loading-spinner">Loading...</div>
-        </div>
-      </div>
-    );
-  }
+  const handleDisableTwoFactor = async () => {
+    setError('');
+    setSuccess('');
+    setTwoFactorBusy(true);
 
-  if (!user) {
-    return (
-      <div className="profile-container">
-        <div className="profile-card">
-          <p className="error-message">Failed to load profile</p>
-        </div>
-      </div>
-    );
-  }
+    try {
+      await disableTwoFactor(twoFactorCode);
+      setTwoFactorCode('');
+      setTwoFactorSetup(null);
+      setSuccess('Two-factor authentication disabled.');
+    } catch (disableError) {
+      setError(getErrorMessage(disableError, 'Unable to disable two-factor authentication.'));
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
 
   return (
-    <div className="profile-container">
-      <div className="profile-card">
-        <div className="profile-header">
-          <h1>Profile</h1>
-          {!isEditing && (
-            <button 
-              className="btn-edit"
-              onClick={() => setIsEditing(true)}
-            >
-              Edit Profile
-            </button>
-          )}
+    <div className="profile-v2">
+      <section className="profile-v2__hero">
+        <div className="profile-v2__identity">
+          <div className="profile-v2__avatar">{initials}</div>
+          <div>
+            <span className="profile-v2__pill">Account</span>
+            <h1>{user.name || 'CodeVault user'}</h1>
+            <p>{user.email}</p>
+          </div>
         </div>
 
-        {success && <div className="success-message">{success}</div>}
-        {error && <div className="error-message">{error}</div>}
+        <div className="profile-v2__summary">
+          <div>
+            <strong>{summary?.snippetCount ?? 0}</strong>
+            <span>Snippets saved</span>
+          </div>
+          <div>
+            <strong>{summary?.teamCount ?? 0}</strong>
+            <span>Team memberships</span>
+          </div>
+          <div>
+            <strong>{summary?.unreadNotifications ?? 0}</strong>
+            <span>Unread alerts</span>
+          </div>
+        </div>
+      </section>
 
-        <div className="profile-content">
-          <div className="profile-avatar">
-            <div className="avatar-circle">
-              {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
-            </div>
-            <div className="avatar-info">
-              <h2>{user.name || 'User'}</h2>
-              <p>{user.email}</p>
+      <div className="profile-v2__layout">
+        <section className="profile-v2__card">
+          <div className="profile-v2__card-header">
+            <UserRound size={18} />
+            <div>
+              <h2>Profile details</h2>
+              <p>Keep your identity and session defaults up to date.</p>
             </div>
           </div>
 
-          <div className="profile-details">
-            {isEditing ? (
+          {error ? <div className="profile-v2__error">{error}</div> : null}
+          {success ? <div className="profile-v2__success">{success}</div> : null}
+
+          <form className="profile-v2__form" onSubmit={handleSave}>
+            <label>
+              <span>Full name</span>
+              <input
+                type="text"
+                value={formState.name}
+                onChange={(event) =>
+                  setFormState((current) => ({ ...current, name: event.target.value }))
+                }
+              />
+            </label>
+
+            <label>
+              <span>Email address</span>
+              <input
+                type="email"
+                value={formState.email}
+                onChange={(event) =>
+                  setFormState((current) => ({ ...current, email: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className="profile-v2__check">
+              <input
+                type="checkbox"
+                checked={formState.rememberMeDefault}
+                onChange={(event) =>
+                  setFormState((current) => ({
+                    ...current,
+                    rememberMeDefault: event.target.checked,
+                  }))
+                }
+              />
+              <span>Remember me by default on trusted devices</span>
+            </label>
+
+            <div className="profile-v2__actions">
+              <button type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+              <button
+                type="button"
+                className="is-secondary"
+                onClick={async () => {
+                  await logout();
+                  navigate('/');
+                }}
+              >
+                Log out
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="profile-v2__card">
+          <div className="profile-v2__card-header">
+            <ShieldCheck size={18} />
+            <div>
+              <h2>Security</h2>
+              <p>Enable stronger sign-in protection and keep recovery codes close.</p>
+            </div>
+          </div>
+
+          <div className="profile-v2__security-status">
+            <strong>{user.twoFactorEnabled ? 'Two-factor enabled' : 'Two-factor disabled'}</strong>
+            <span>
+              {user.twoFactorEnabled
+                ? 'Your account currently requires a verification code at sign-in.'
+                : 'Add an authenticator app for extra account protection.'}
+            </span>
+          </div>
+
+          {twoFactorSetup ? (
+            <div className="profile-v2__setup">
+              <p>
+                Add this secret to your authenticator app, then enter one 6-digit code to enable
+                two-factor authentication.
+              </p>
+              <code>{twoFactorSetup.secret}</code>
+              <div className="profile-v2__backup">
+                {twoFactorSetup.backupCodes.map((backupCode) => (
+                  <span key={backupCode}>{backupCode}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <label>
+            <span>Verification code</span>
+            <input
+              type="text"
+              placeholder="123456 or backup code"
+              value={twoFactorCode}
+              onChange={(event) => setTwoFactorCode(event.target.value)}
+            />
+          </label>
+
+          <div className="profile-v2__actions">
+            {!user.twoFactorEnabled ? (
               <>
-                <div className="form-group">
-                  <label htmlFor="name">Full Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="email">Email Address</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Enter your email"
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button
-                    className="btn-save"
-                    onClick={handleSave}
-                    disabled={saving}
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button
-                    className="btn-cancel"
-                    onClick={handleCancel}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button type="button" className="is-secondary" onClick={handleSetupTwoFactor}>
+                  {twoFactorBusy ? 'Working...' : 'Generate setup'}
+                </button>
+                <button type="button" onClick={handleEnableTwoFactor} disabled={twoFactorBusy}>
+                  Enable 2FA
+                </button>
               </>
             ) : (
-              <>
-                <div className="detail-item">
-                  <label>Full Name</label>
-                  <p>{user.name || 'Not set'}</p>
-                </div>
-
-                <div className="detail-item">
-                  <label>Email Address</label>
-                  <p>{user.email}</p>
-                </div>
-
-                <div className="detail-item">
-                  <label>Member Since</label>
-                  <p>{new Date(user.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}</p>
-                </div>
-              </>
+              <button type="button" onClick={handleDisableTwoFactor} disabled={twoFactorBusy}>
+                {twoFactorBusy ? 'Working...' : 'Disable 2FA'}
+              </button>
             )}
           </div>
-        </div>
-
-        <div className="profile-actions">
-          <button
-            className="btn-logout"
-            onClick={handleLogout}
-          >
-            Log Out
-          </button>
-        </div>
+        </section>
       </div>
     </div>
   );
 };
 
 export default Profile;
-

@@ -7,30 +7,160 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  snippets  Snippet[]
+enum UserRole {
+  MEMBER
+  ADMIN
+}
 
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum SnippetVisibility {
+  PRIVATE
+  TEAM
+  PUBLIC
+}
+
+enum SnippetAccessRole {
+  VIEWER
+  EDITOR
+}
+
+enum NotificationType {
+  COMMENT_ADDED
+  SNIPPET_UPDATED
+  TEAM_JOINED
+}
+
+model User {
+  id                   String                @id @default(uuid())
+  email                String                @unique
+  password             String
+  name                 String?
+  role                 UserRole              @default(MEMBER)
+  sessionVersion       Int                   @default(0)
+  rememberMeDefault    Boolean               @default(false)
+  twoFactorEnabled     Boolean               @default(false)
+  twoFactorSecret      String?               @db.Text
+  twoFactorBackupCodes String[]              @default([])
+  lastLoginAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  snippets             Snippet[]
+  ownedTeams           Team[]                @relation("TeamOwner")
+  teamMemberships      TeamMember[]
+  snippetComments      Comment[]
+  notifications        Notification[]
+  collaborations       SnippetCollaborator[]
+
+  @@index([role])
   @@map("users")
 }
 
 model Snippet {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  code        String
-  language    String
-  tags        String[] @default([])
-  isPublic    Boolean  @default(false)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String               @id @default(uuid())
+  title         String
+  description   String?
+  code          String               @db.Text
+  language      String
+  tags          String[]             @default([])
+  isPublic      Boolean              @default(false)
+  visibility    SnippetVisibility    @default(PRIVATE)
+  userId        String
+  teamId        String?
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team          Team?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  comments      Comment[]
+  collaborators SnippetCollaborator[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
+  @@index([userId, updatedAt])
+  @@index([visibility, updatedAt])
+  @@index([teamId, updatedAt])
+  @@index([language])
+  @@index([title])
   @@map("snippets")
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique
+  description String?
+  inviteCode  String       @unique
+  ownerId     String
+  owner       User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  snippets    Snippet[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([ownerId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      TeamRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId, role])
+  @@map("team_members")
+}
+
+model SnippetCollaborator {
+  id        String            @id @default(uuid())
+  snippetId String
+  userId    String
+  role      SnippetAccessRole @default(VIEWER)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  snippet   Snippet           @relation(fields: [snippetId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([snippetId, userId])
+  @@index([userId, role])
+  @@map("snippet_collaborators")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  snippetId String
+  userId    String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  snippet   Snippet  @relation(fields: [snippetId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([snippetId, createdAt])
+  @@index([userId, createdAt])
+  @@map("comments")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  payload   Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }

@@ -1,306 +1,496 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import prisma from '../db/prisma.js';
+import { sendError, sendSuccess } from '../utils/http.js';
+import {
+  buildTwoFactorSetup,
+  clearSessionCookie,
+  consumeBackupCode,
+  createSessionToken,
+  generateBackupCodes,
+  hashBackupCodes,
+  normalizeEmail,
+  setSessionCookie,
+  verifyTwoFactorCode,
+} from '../utils/security.js';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const publicUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  rememberMeDefault: true,
+  twoFactorEnabled: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLoginAt: true,
+};
+
+const validatePassword = (password) => {
+  if (String(password || '').length < 8) {
+    return 'Password must be at least 8 characters long.';
+  }
+
+  return null;
+};
+
+const validateEmail = (email) => {
+  if (!EMAIL_REGEX.test(email)) {
+    return 'Please provide a valid email address.';
+  }
+
+  return null;
+};
+
+const buildAuthResponse = (user) => {
+  const { sessionVersion: _sessionVersion, ...publicUser } = user;
+
+  return {
+    user: publicUser,
+  };
+};
+
+const signUserIn = (res, user, rememberMe) => {
+  const token = createSessionToken(user, { rememberMe });
+  setSessionCookie(res, token, rememberMe);
+};
 
 const authController = {
   async signup(req, res) {
     try {
-      const { email, password, name } = req.body;
+      const email = normalizeEmail(req.body.email);
+      const password = req.body.password;
+      const name = String(req.body.name || '').trim() || null;
+      const rememberMe = Boolean(req.body.rememberMe);
 
-      if (!email || !password) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Email and password are required' 
-        });
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid email format'
+      if (!email || !password || !name) {
+        return sendError(res, {
+          status: 400,
+          message: 'Name, email, and password are required.',
         });
       }
 
-      // Validate password length
-      if (password.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: 'Password must be at least 6 characters long'
-        });
+      const emailError = validateEmail(email);
+
+      if (emailError) {
+        return sendError(res, { status: 400, message: emailError });
       }
-  
-      let existingUser;
-      try {
-        existingUser = await prisma.user.findUnique({
-          where: { email }
-        });
-      } catch (dbError) {
-        console.error('Database error checking existing user:', dbError);
-        return res.status(500).json({
-          success: false,
-          message: 'Database connection error. Please try again later.'
-        });
+
+      const passwordError = validatePassword(password);
+
+      if (passwordError) {
+        return sendError(res, { status: 400, message: passwordError });
       }
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
 
       if (existingUser) {
-        return res.status(409).json({ 
-          success: false, 
-          message: 'User already exists' 
+        return sendError(res, {
+          status: 409,
+          message: 'An account with that email already exists.',
         });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          rememberMeDefault: rememberMe,
+          lastLoginAt: new Date(),
+        },
+        select: {
+          ...publicUserSelect,
+          sessionVersion: true,
+        },
+      });
 
-      let user;
-      try {
-        user = await prisma.user.create({
-          data: {
-            email,
-            password: hashedPassword,
-            name: name || null
-          },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            createdAt: true
-          }
-        });
-      } catch (dbError) {
-        console.error('Database error creating user:', dbError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to create account. Please try again later.'
-        });
-      }
+      signUserIn(res, user, rememberMe);
 
-      if (!process.env.JWT_SECRET) {
-        console.error('JWT_SECRET is not configured');
-        return res.status(500).json({
-          success: false,
-          message: 'Server configuration error'
-        });
-      }
-
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      // Cookie settings for cross-origin support
-      const isProduction = process.env.NODE_ENV === 'production';
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isProduction, // Must be true for sameSite: 'none'
-        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin, 'lax' for same-site
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/', // Ensure cookie is available for all paths
-      };
-      
-      // Don't set domain in production - let browser handle it
-      res.cookie('token', token, cookieOptions);
-
-      res.status(201).json({
-        success: true,
-        message: 'User registered successfully',
-        data: { user }
+      return sendSuccess(res, {
+        status: 201,
+        message: 'Account created successfully.',
+        data: buildAuthResponse(user),
       });
     } catch (error) {
-      console.error('Register error:', error);
-      // Don't expose internal error details in production
-      const errorMessage = process.env.NODE_ENV === 'production' 
-        ? 'Registration failed. Please try again later.'
-        : error.message;
-      res.status(500).json({ 
-        success: false, 
-        message: errorMessage 
+      console.error('Signup error:', error);
+      return sendError(res, {
+        status: 500,
+        message: 'We could not create your account right now.',
       });
     }
   },
 
   async login(req, res) {
     try {
-      const { email, password } = req.body;
+      const email = normalizeEmail(req.body.email);
+      const password = req.body.password;
+      const providedRememberMe = req.body.rememberMe;
+      const twoFactorCode = String(req.body.twoFactorCode || '').trim();
 
-      // Validate input
       if (!email || !password) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Email and password are required' 
+        return sendError(res, {
+          status: 400,
+          message: 'Email and password are required.',
         });
       }
 
-      // Find user
-      let user;
-      try {
-        user = await prisma.user.findUnique({
-          where: { email }
-        });
-      } catch (dbError) {
-        console.error('Database error finding user:', dbError);
-        return res.status(500).json({
-          success: false,
-          message: 'Database connection error. Please try again later.'
+      const userWithPassword = await prisma.user.findUnique({
+        where: { email },
+        select: {
+          ...publicUserSelect,
+          password: true,
+          sessionVersion: true,
+          twoFactorSecret: true,
+          twoFactorBackupCodes: true,
+        },
+      });
+
+      if (!userWithPassword) {
+        return sendError(res, {
+          status: 401,
+          message: 'Invalid email or password.',
         });
       }
 
-      if (!user) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Invalid credentials' 
-        });
-      }
+      const isPasswordValid = await bcrypt.compare(password, userWithPassword.password);
 
-      // Verify password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Invalid credentials' 
+        return sendError(res, {
+          status: 401,
+          message: 'Invalid email or password.',
         });
       }
 
-      // Generate JWT token
-      if (!process.env.JWT_SECRET) {
-        console.error('JWT_SECRET is not configured');
-        return res.status(500).json({
-          success: false,
-          message: 'Server configuration error'
-        });
+      if (userWithPassword.twoFactorEnabled) {
+        if (!twoFactorCode) {
+          return sendSuccess(res, {
+            message: 'Two-factor authentication required.',
+            data: {
+              twoFactorRequired: true,
+            },
+          });
+        }
+
+        const isValidTotp = verifyTwoFactorCode(
+          userWithPassword.twoFactorSecret,
+          twoFactorCode,
+        );
+
+        if (!isValidTotp) {
+          const remainingBackupCodes = await consumeBackupCode(
+            twoFactorCode.toLowerCase(),
+            userWithPassword.twoFactorBackupCodes,
+          );
+
+          if (!remainingBackupCodes) {
+            return sendError(res, {
+              status: 401,
+              message: 'Invalid two-factor code.',
+            });
+          }
+
+          await prisma.user.update({
+            where: { id: userWithPassword.id },
+            data: {
+              twoFactorBackupCodes: remainingBackupCodes,
+            },
+          });
+        }
       }
 
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      const rememberMe =
+        typeof providedRememberMe === 'boolean'
+          ? providedRememberMe
+          : userWithPassword.rememberMeDefault;
 
-      // Set cookie
-      // Cookie settings for cross-origin support
-      const isProduction = process.env.NODE_ENV === 'production';
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isProduction, // Must be true for sameSite: 'none'
-        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin, 'lax' for same-site
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/', // Ensure cookie is available for all paths
-      };
-      
-      // Don't set domain in production - let browser handle it
-      // Setting domain explicitly can cause issues with cross-origin cookies
-      res.cookie('token', token, cookieOptions);
+      const user = await prisma.user.update({
+        where: { id: userWithPassword.id },
+        data: {
+          lastLoginAt: new Date(),
+          rememberMeDefault: rememberMe,
+        },
+        select: {
+          ...publicUserSelect,
+          sessionVersion: true,
+        },
+      });
 
-      // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
+      signUserIn(res, user, rememberMe);
 
-      res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        data: { user: userWithoutPassword }
+      return sendSuccess(res, {
+        message: 'Login successful.',
+        data: buildAuthResponse(user),
       });
     } catch (error) {
       console.error('Login error:', error);
-      // Don't expose internal error details in production
-      const errorMessage = process.env.NODE_ENV === 'production'
-        ? 'Login failed. Please try again later.'
-        : error.message;
-      res.status(500).json({ 
-        success: false, 
-        message: errorMessage 
+      return sendError(res, {
+        status: 500,
+        message: 'We could not sign you in right now.',
       });
     }
   },
 
   async getProfile(req, res) {
     try {
-      // User is attached to request by auth middleware
-      const user = req.user;
-      res.status(200).json({
-        success: true,
-        data: user
+      const [snippetCount, teamCount, unreadNotifications] = await prisma.$transaction([
+        prisma.snippet.count({
+          where: { userId: req.user.id },
+        }),
+        prisma.teamMember.count({
+          where: { userId: req.user.id },
+        }),
+        prisma.notification.count({
+          where: {
+            userId: req.user.id,
+            readAt: null,
+          },
+        }),
+      ]);
+
+      return sendSuccess(res, {
+        data: {
+          user: req.user,
+          summary: {
+            snippetCount,
+            teamCount,
+            unreadNotifications,
+          },
+        },
       });
     } catch (error) {
       console.error('Get profile error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to fetch profile' 
+      return sendError(res, {
+        status: 500,
+        message: 'Unable to load your profile.',
       });
     }
   },
 
   async updateProfile(req, res) {
     try {
-      const { name, email } = req.body;
-      const userId = req.user.id;
+      const nextEmail = req.body.email ? normalizeEmail(req.body.email) : undefined;
+      const name = req.body.name;
+      const rememberMeDefault =
+        typeof req.body.rememberMeDefault === 'boolean'
+          ? req.body.rememberMeDefault
+          : undefined;
 
-      // Check if email is being changed and if it's already taken
-      if (email && email !== req.user.email) {
-        const existingUser = await prisma.user.findUnique({
-          where: { email }
-        });
+      if (nextEmail) {
+        const emailError = validateEmail(nextEmail);
 
-        if (existingUser) {
-          return res.status(409).json({
-            success: false,
-            message: 'Email already exists'
+        if (emailError) {
+          return sendError(res, { status: 400, message: emailError });
+        }
+
+        if (nextEmail !== req.user.email) {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: nextEmail },
+            select: { id: true },
           });
+
+          if (existingUser) {
+            return sendError(res, {
+              status: 409,
+              message: 'That email is already in use.',
+            });
+          }
         }
       }
 
-      // Update user
       const updatedUser = await prisma.user.update({
-        where: { id: userId },
+        where: { id: req.user.id },
         data: {
-          ...(name !== undefined && { name }),
-          ...(email !== undefined && { email })
+          ...(nextEmail !== undefined && { email: nextEmail }),
+          ...(name !== undefined && { name: String(name).trim() || null }),
+          ...(rememberMeDefault !== undefined && { rememberMeDefault }),
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          createdAt: true,
-          updatedAt: true
-        }
+        select: publicUserSelect,
       });
 
-      res.status(200).json({
-        success: true,
-        message: 'Profile updated successfully',
-        data: updatedUser
+      return sendSuccess(res, {
+        message: 'Profile updated successfully.',
+        data: {
+          user: updatedUser,
+        },
       });
     } catch (error) {
       console.error('Update profile error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update profile'
+      return sendError(res, {
+        status: 500,
+        message: 'We could not update your profile right now.',
       });
     }
   },
 
-  async logout(req, res) {
+  async setupTwoFactor(req, res) {
     try {
-      const isProduction = process.env.NODE_ENV === 'production';
-      res.clearCookie('token', {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        path: '/',
+      const { secret, otpauthUrl } = buildTwoFactorSetup(req.user.email);
+      const backupCodes = generateBackupCodes();
+      const hashedBackupCodes = await hashBackupCodes(
+        backupCodes.map((code) => code.toLowerCase()),
+      );
+
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          twoFactorSecret: secret,
+          twoFactorEnabled: false,
+          twoFactorBackupCodes: hashedBackupCodes,
+        },
       });
-      res.status(200).json({
-        success: true,
-        message: 'Logged out successfully'
+
+      return sendSuccess(res, {
+        message: 'Two-factor authentication setup generated.',
+        data: {
+          secret,
+          otpauthUrl,
+          backupCodes,
+        },
+      });
+    } catch (error) {
+      console.error('Setup 2FA error:', error);
+      return sendError(res, {
+        status: 500,
+        message: 'Unable to start two-factor setup.',
+      });
+    }
+  },
+
+  async enableTwoFactor(req, res) {
+    try {
+      const code = String(req.body.code || '').trim();
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: {
+          ...publicUserSelect,
+          sessionVersion: true,
+          twoFactorSecret: true,
+        },
+      });
+
+      if (!user?.twoFactorSecret) {
+        return sendError(res, {
+          status: 400,
+          message: 'Two-factor setup has not been started yet.',
+        });
+      }
+
+      if (!verifyTwoFactorCode(user.twoFactorSecret, code)) {
+        return sendError(res, {
+          status: 400,
+          message: 'Invalid verification code.',
+        });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          twoFactorEnabled: true,
+          sessionVersion: { increment: 1 },
+        },
+        select: {
+          ...publicUserSelect,
+          sessionVersion: true,
+        },
+      });
+
+      signUserIn(res, updatedUser, updatedUser.rememberMeDefault);
+
+      return sendSuccess(res, {
+        message: 'Two-factor authentication enabled.',
+        data: buildAuthResponse(updatedUser),
+      });
+    } catch (error) {
+      console.error('Enable 2FA error:', error);
+      return sendError(res, {
+        status: 500,
+        message: 'Unable to enable two-factor authentication.',
+      });
+    }
+  },
+
+  async disableTwoFactor(req, res) {
+    try {
+      const code = String(req.body.code || '').trim();
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: {
+          ...publicUserSelect,
+          sessionVersion: true,
+          twoFactorSecret: true,
+          twoFactorBackupCodes: true,
+        },
+      });
+
+      if (!user?.twoFactorEnabled) {
+        return sendError(res, {
+          status: 400,
+          message: 'Two-factor authentication is not enabled.',
+        });
+      }
+
+      const isValidTotp = verifyTwoFactorCode(user.twoFactorSecret, code);
+      const remainingBackupCodes = isValidTotp
+        ? user.twoFactorBackupCodes
+        : await consumeBackupCode(code.toLowerCase(), user.twoFactorBackupCodes);
+
+      if (!isValidTotp && !remainingBackupCodes) {
+        return sendError(res, {
+          status: 400,
+          message: 'Invalid verification code.',
+        });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          twoFactorEnabled: false,
+          twoFactorSecret: null,
+          twoFactorBackupCodes: [],
+          sessionVersion: { increment: 1 },
+        },
+        select: {
+          ...publicUserSelect,
+          sessionVersion: true,
+        },
+      });
+
+      signUserIn(res, updatedUser, updatedUser.rememberMeDefault);
+
+      return sendSuccess(res, {
+        message: 'Two-factor authentication disabled.',
+        data: buildAuthResponse(updatedUser),
+      });
+    } catch (error) {
+      console.error('Disable 2FA error:', error);
+      return sendError(res, {
+        status: 500,
+        message: 'Unable to disable two-factor authentication.',
+      });
+    }
+  },
+
+  async logout(_req, res) {
+    try {
+      clearSessionCookie(res);
+
+      return sendSuccess(res, {
+        message: 'Logged out successfully.',
       });
     } catch (error) {
       console.error('Logout error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Logout failed' 
+      return sendError(res, {
+        status: 500,
+        message: 'We could not sign you out right now.',
       });
     }
-  }
+  },
 };
 
 export default authController;

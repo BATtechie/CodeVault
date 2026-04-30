@@ -1,0 +1,125 @@
+.code-block {
+  border: 1px solid var(--border-strong);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at top right, rgba(135, 96, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(9, 12, 20, 0.98), rgba(15, 20, 34, 0.98));
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.code-block__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.code-block__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(230, 237, 255, 0.52);
+}
+
+.code-block__language {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-inverse);
+}
+
+.code-block__copy,
+.code-block__toggle {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-inverse);
+  font: inherit;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.code-block__copy {
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.88rem;
+}
+
+.code-block__copy:hover,
+.code-block__toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.code-block__body {
+  padding: 0.9rem 0;
+  overflow-x: auto;
+}
+
+.code-block__line {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 0 1rem;
+}
+
+.code-block__line-number {
+  user-select: none;
+  text-align: right;
+  color: rgba(230, 237, 255, 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  padding-top: 0.08rem;
+}
+
+.code-block__line-content {
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.code-token--plain {
+  color: #d8e1ff;
+}
+
+.code-token--comment {
+  color: #6d7fae;
+}
+
+.code-token--string {
+  color: #ffcf74;
+}
+
+.code-token--number {
+  color: #7bdaf4;
+}
+
+.code-token--operator {
+  color: #d995ff;
+}
+
+.code-token--punctuation {
+  color: #9db3ff;
+}
+
+.code-token--keyword {
+  color: #8df3c8;
+}
+
+.code-token--function {
+  color: #84a8ff;
+}
+
+.code-block__toggle {
+  width: 100%;
+  padding: 0.8rem 1rem 0.95rem;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  font-size: 0.9rem;
+}

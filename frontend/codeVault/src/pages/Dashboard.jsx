@@ -1,582 +1,511 @@
-import React, { useState, useEffect } from 'react';
-// import { useNavigate } from 'react-router-dom';
+import { startTransition, useDeferredValue, useEffect, useState } from 'react';
+import { Bell, FolderKanban, Plus, Search, Users } from 'lucide-react';
+import SnippetEditor from '../components/SnippetEditor';
+import SnippetCard from '../components/SnippetCard';
+import { apiRequest, buildQueryString, getErrorMessage } from '../config/api.js';
+import useAuth from '../hooks/useAuth.js';
 import './Dashboard.css';
-import { API_BASE_URL } from '../config/api.js';
 
 const Dashboard = () => {
-  // const navigate = useNavigate();
+  const {
+    user,
+    summary,
+    notifications,
+    unreadCount,
+    refreshSession,
+    refreshNotifications,
+  } = useAuth();
   const [snippets, setSnippets] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [search, setSearch] = useState('');
+  const [scope, setScope] = useState('workspace');
+  const [language, setLanguage] = useState('');
+  const [visibility, setVisibility] = useState('');
+  const [teamId, setTeamId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showCreatePage, setShowCreatePage] = useState(false);
-  const [editingSnippet, setEditingSnippet] = useState(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    language: 'JavaScript',
-    code: '',
-    tags: '',
-    isPublic: false
-  });
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [expandedSnippets, setExpandedSnippets] = useState(new Set());
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingSnippet, setEditingSnippet] = useState(null);
+  const [editorError, setEditorError] = useState('');
+  const [savingSnippet, setSavingSnippet] = useState(false);
+  const [commentsBySnippet, setCommentsBySnippet] = useState({});
+  const [commentDrafts, setCommentDrafts] = useState({});
+  const [commentLoadingId, setCommentLoadingId] = useState('');
+  const [commentSubmittingId, setCommentSubmittingId] = useState('');
+  const [createTeamName, setCreateTeamName] = useState('');
+  const [createTeamDescription, setCreateTeamDescription] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [teamError, setTeamError] = useState('');
+  const [teamLoading, setTeamLoading] = useState(false);
+  const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
-    fetchSnippets();
+    let active = true;
+
+    const loadTeams = async () => {
+      try {
+        const response = await apiRequest('/api/teams');
+
+        if (active) {
+          setTeams(response.data || []);
+        }
+      } catch {
+        if (active) {
+          setTeams([]);
+        }
+      }
+    };
+
+    loadTeams();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const fetchSnippets = async () => {
-    try {
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const loadSnippets = async () => {
       setLoading(true);
       setError('');
 
-      const res = await fetch(`${API_BASE_URL}/api/snippets`, {
-        method: 'GET',
-        credentials: 'include',
-      });
+      try {
+        const query = buildQueryString({
+          q: deferredSearch,
+          scope,
+          language,
+          visibility,
+          teamId,
+        });
+        const response = await apiRequest(`/api/snippets${query}`, {
+          signal: controller.signal,
+        });
 
-      if (res.status === 401) {
-        setIsAuthenticated(false);
-        setSnippets([]);
-        setError('');
-        setLoading(false);
-        return;
+        if (!active) {
+          return;
+        }
+
+        startTransition(() => {
+          setSnippets(response.data || []);
+        });
+      } catch (loadError) {
+        if (!active || loadError.name === 'AbortError') {
+          return;
+        }
+
+        setError(getErrorMessage(loadError, 'Unable to load snippets right now.'));
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-
-      if (!res.ok) {
-        // If not ok, treat as empty state for unauthenticated users
-        setIsAuthenticated(false);
-        setSnippets([]);
-        setError('');
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        setIsAuthenticated(true);
-        setSnippets(data.data || []);
-        setError('');
-      } else {
-        setIsAuthenticated(false);
-        setSnippets([]);
-        setError('');
-      }
-    } catch (err) {
-      console.error('Error fetching snippets:', err);
-      // On error, show empty state instead of error message
-      setIsAuthenticated(false);
-      setSnippets([]);
-      setError('');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStartCreate = () => {
-    console.log('isAuthenticated:', isAuthenticated);
-    if (!isAuthenticated) {
-      setError('Please log in or sign up to create snippets.');
-      return;
-    }
-    resetForm();
-    setShowCreatePage(true);
-  };
-
-  const handleCreateSnippet = async () => {
-    if (!formData.title || !formData.code) {
-      setError('Please fill in title and code');
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-
-      const res = await fetch(`${API_BASE_URL}/api/snippets`, {
-        method: 'POST',
-        headers: headers,
-        credentials: 'include',
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          code: formData.code,
-          language: formData.language,
-          tags: formData.tags,
-          isPublic: formData.isPublic
-        }),
-      });
-
-      if (res.status === 401) {
-        setIsAuthenticated(false);
-        setError('Please log in to create a snippet.');
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || 'Failed to create snippet');
-        setSaving(false);
-        return;
-      }
-
-      if (data.success) {
-        setSnippets([data.data, ...snippets]);
-        resetForm();
-        setShowCreatePage(false);
-      }
-    } catch (err) {
-      console.error('Error creating snippet:', err);
-      setError('Server unreachable. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUpdateSnippet = async () => {
-    if (!formData.title || !formData.code) {
-      setError('Please fill in title and code');
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-
-      const res = await fetch(`${API_BASE_URL}/api/snippets/${editingSnippet.id}`, {
-        method: 'PUT',
-        headers: headers,
-        credentials: 'include',
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          code: formData.code,
-          language: formData.language,
-          tags: formData.tags,
-          isPublic: formData.isPublic
-        }),
-      });
-
-      if (res.status === 401) {
-        setIsAuthenticated(false);
-        setError('Please log in to update a snippet.');
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || 'Failed to update snippet');
-        setSaving(false);
-        return;
-      }
-
-      if (data.success) {
-        setSnippets(snippets.map(s => s.id === editingSnippet.id ? data.data : s));
-        resetForm();
-        setEditingSnippet(null);
-      }
-    } catch (err) {
-      console.error('Error updating snippet:', err);
-      setError('Server unreachable. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this snippet?')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/snippets/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (res.status === 401) {
-        setIsAuthenticated(false);
-        setError('Please log in to manage snippets.');
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error('Failed to delete snippet');
-      }
-
-      setSnippets(snippets.filter(snippet => snippet.id !== id));
-    } catch (err) {
-      console.error('Error deleting snippet:', err);
-      setError('Failed to delete snippet. Please try again.');
-    }
-  };
-
-  const handleEdit = (snippet) => {
-    setEditingSnippet(snippet);
-    setFormData({
-      title: snippet.title,
-      description: snippet.description || '',
-      language: snippet.language,
-      code: snippet.code,
-      tags: Array.isArray(snippet.tags) ? snippet.tags.join(', ') : '',
-      isPublic: snippet.isPublic
-    });
-    setShowCreatePage(true);
-    setError('');
-  };
-
-  const handleCopy = (code) => {
-    navigator.clipboard.writeText(code);
-    alert('Code copied to clipboard!');
-  };
-
-  const toggleExpand = (snippetId) => {
-    setExpandedSnippets(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(snippetId)) {
-        newSet.delete(snippetId);
-      } else {
-        newSet.add(snippetId);
-      }
-      return newSet;
-    });
-  };
-
-  const getCodePreview = (code, maxLines = 10) => {
-    const lines = code.split('\n');
-    if (lines.length <= maxLines) {
-      return code;
-    }
-    return lines.slice(0, maxLines).join('\n');
-  };
-
-  const isCodeLong = (code) => {
-    return code.split('\n').length > 10;
-  };
-
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      language: 'JavaScript',
-      code: '',
-      tags: '',
-      isPublic: false
-    });
-    setError('');
-  };
-
-  const handleCancel = () => {
-    resetForm();
-    setShowCreatePage(false);
-    setEditingSnippet(null);
-  };
-
-  const filteredSnippets = snippets.filter(snippet =>
-    snippet.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    snippet.language.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (Array.isArray(snippet.tags) && snippet.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
-  );
-
-  const getLanguageColor = (language) => {
-    const colors = {
-      TYPESCRIPT: '#3178c6',
-      JAVASCRIPT: '#f7df1e',
-      SQL: '#e535ab',
-      PYTHON: '#3776ab',
-      JAVA: '#f89820',
-      CPP: '#00599c',
-      REACT: '#61dafb',
-      HTML: '#e34c26',
-      CSS: '#264de4',
-      NODE: '#339933'
     };
-    return colors[language] || '#6c757d';
+
+    loadSnippets();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [deferredSearch, language, scope, teamId, visibility]);
+
+  const resetEditor = () => {
+    setEditingSnippet(null);
+    setEditorOpen(false);
+    setEditorError('');
   };
 
-  if (showCreatePage) {
-    return (
-      <div className="create-snippet-page">
-        <div className="create-snippet-container">
-          <button className="back-button" onClick={handleCancel}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-            Back to Dashboard
-          </button>
+  const loadComments = async (snippetId) => {
+    setCommentLoadingId(snippetId);
 
-          <h1 className="create-title">
-            {editingSnippet ? 'Edit Snippet' : 'Create New Snippet'}
-          </h1>
+    try {
+      const response = await apiRequest(`/api/snippets/${snippetId}/comments`);
+      setCommentsBySnippet((current) => ({
+        ...current,
+        [snippetId]: response.data || [],
+      }));
+    } catch {
+      setCommentsBySnippet((current) => ({
+        ...current,
+        [snippetId]: [],
+      }));
+    } finally {
+      setCommentLoadingId('');
+    }
+  };
 
-          {error && <div className="error-message">{error}</div>}
+  const handleSaveSnippet = async (payload) => {
+    setSavingSnippet(true);
+    setEditorError('');
 
-          <div className="create-form">
-            <div className="form-group">
-              <label>Snippet Title *</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                placeholder="e.g., React useLocalStorage Hook"
-              />
-            </div>
+    try {
+      const endpoint = editingSnippet ? `/api/snippets/${editingSnippet.id}` : '/api/snippets';
+      const method = editingSnippet ? 'PUT' : 'POST';
+      const response = await apiRequest(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
 
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                rows="4"
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Describe what this snippet does..."
-              />
-            </div>
+      if (editingSnippet) {
+        setSnippets((current) =>
+          current.map((snippet) =>
+            snippet.id === editingSnippet.id ? response.data : snippet,
+          ),
+        );
+      } else {
+        setSnippets((current) => [response.data, ...current]);
+      }
 
-            <div className="form-row">
-              <div className="form-group form-group-half">
-                <label>Language *</label>
-                <select
-                  value={formData.language}
-                  onChange={(e) => setFormData({...formData, language: e.target.value})}
-                >
-                  <option value="JavaScript">JavaScript</option>
-                  <option value="TypeScript">TypeScript</option>
-                  <option value="Python">Python</option>
-                  <option value="Java">Java</option>
-                  <option value="CPP">C++</option>
-                  <option value="SQL">SQL</option>
-                  <option value="React">React</option>
-                  <option value="HTML">HTML</option>
-                  <option value="CSS">CSS</option>
-                  <option value="Node">Node.js</option>
-                </select>
-              </div>
+      await refreshSession();
+      await refreshNotifications();
+      resetEditor();
+    } catch (saveError) {
+      setEditorError(getErrorMessage(saveError, 'Unable to save this snippet right now.'));
+    } finally {
+      setSavingSnippet(false);
+    }
+  };
 
-              <div className="form-group form-group-half">
-                <label>Tags (comma-separated)</label>
-                <input
-                  type="text"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                  placeholder="e.g., react, hooks, state"
-                />
-              </div>
-            </div>
+  const handleDeleteSnippet = async (snippetId) => {
+    const confirmed = window.confirm('Delete this snippet? This cannot be undone.');
 
-            <div className="form-group">
-              <label>Code *</label>
-              <textarea
-                className="code-textarea"
-                rows="12"
-                value={formData.code}
-                onChange={(e) => setFormData({...formData, code: e.target.value})}
-                placeholder="Paste your code here..."
-              />
-            </div>
+    if (!confirmed) {
+      return;
+    }
 
-            <div className="form-group-checkbox">
-              <input
-                type="checkbox"
-                id="isPublic"
-                checked={formData.isPublic}
-                onChange={(e) => setFormData({...formData, isPublic: e.target.checked})}
-              />
-              <label htmlFor="isPublic">Make this snippet public</label>
-            </div>
+    try {
+      await apiRequest(`/api/snippets/${snippetId}`, {
+        method: 'DELETE',
+      });
 
-            <div className="form-actions">
-              <button 
-                className="btn-create-snippet" 
-                onClick={editingSnippet ? handleUpdateSnippet : handleCreateSnippet}
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : (editingSnippet ? 'Update Snippet' : 'Create Snippet')}
-              </button>
-              <button 
-                className="btn-cancel-create" 
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+      setSnippets((current) => current.filter((snippet) => snippet.id !== snippetId));
+      await refreshSession();
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, 'Unable to delete this snippet right now.'));
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="dashboard">
-        <div className="loading-container">
-          <div className="loading-spinner">Loading snippets...</div>
-        </div>
-      </div>
-    );
-  }
+  const handleCommentSubmit = async (snippetId) => {
+    const body = commentDrafts[snippetId]?.trim();
+
+    if (!body) {
+      return;
+    }
+
+    setCommentSubmittingId(snippetId);
+
+    try {
+      const response = await apiRequest(`/api/snippets/${snippetId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+
+      setCommentsBySnippet((current) => ({
+        ...current,
+        [snippetId]: [...(current[snippetId] || []), response.data],
+      }));
+      setCommentDrafts((current) => ({
+        ...current,
+        [snippetId]: '',
+      }));
+      setSnippets((current) =>
+        current.map((snippet) =>
+          snippet.id === snippetId
+            ? {
+                ...snippet,
+                _count: {
+                  ...snippet._count,
+                  comments: (snippet._count?.comments || 0) + 1,
+                },
+              }
+            : snippet,
+        ),
+      );
+      await refreshNotifications();
+    } catch (commentError) {
+      setError(getErrorMessage(commentError, 'Unable to post that comment right now.'));
+    } finally {
+      setCommentSubmittingId('');
+    }
+  };
+
+  const handleCreateTeam = async (event) => {
+    event.preventDefault();
+    setTeamLoading(true);
+    setTeamError('');
+
+    try {
+      const response = await apiRequest('/api/teams', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: createTeamName,
+          description: createTeamDescription,
+        }),
+      });
+
+      setTeams((current) => [response.data, ...current]);
+      setCreateTeamName('');
+      setCreateTeamDescription('');
+      await refreshSession();
+    } catch (createError) {
+      setTeamError(getErrorMessage(createError, 'Unable to create a team right now.'));
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  const handleJoinTeam = async (event) => {
+    event.preventDefault();
+    setTeamLoading(true);
+    setTeamError('');
+
+    try {
+      const response = await apiRequest('/api/teams/join', {
+        method: 'POST',
+        body: JSON.stringify({ inviteCode: joinCode }),
+      });
+
+      setTeams((current) => {
+        const exists = current.some((team) => team.id === response.data.id);
+        return exists ? current : [response.data, ...current];
+      });
+      setJoinCode('');
+      await refreshSession();
+      await refreshNotifications();
+    } catch (joinError) {
+      setTeamError(getErrorMessage(joinError, 'Unable to join that team right now.'));
+    } finally {
+      setTeamLoading(false);
+    }
+  };
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <div className="header-content">
-          <h1 className="dashboard-title">My Snippets</h1>
-          <p className="snippet-count">{snippets.length} {snippets.length === 1 ? 'snippet' : 'snippets'} saved</p>
+    <div className="dashboard-v2">
+      <section className="dashboard-v2__hero">
+        <div>
+          <span className="dashboard-v2__pill">Workspace</span>
+          <h1>{user?.name ? `${user.name.split(' ')[0]}'s vault` : 'Your CodeVault workspace'}</h1>
+          <p>
+            Search across personal snippets, shared team knowledge, and active reviews without
+            leaving the dashboard.
+          </p>
         </div>
-        <button 
-          className="btn-new-snippet" 
-          onClick={handleStartCreate}
-          // disabled={!isAuthenticated}
-          title={isAuthenticated ? 'Create a new snippet' : 'Log in to create snippets'}
+        <button
+          type="button"
+          className="dashboard-v2__primary"
+          onClick={() => {
+            setEditorOpen(true);
+            setEditingSnippet(null);
+            setEditorError('');
+          }}
         >
-          <span className="plus-icon">+</span> New Snippet
+          <Plus size={18} />
+          New snippet
         </button>
-      </div>
+      </section>
 
-      {error && !showCreatePage && (
-        <div className="error-message" style={{ margin: '1rem 0', padding: '1rem' }}>
-          {error}
-        </div>
-      )}
+      <section className="dashboard-v2__stats">
+        <article>
+          <FolderKanban size={18} />
+          <strong>{summary?.snippetCount ?? snippets.length}</strong>
+          <span>Personal snippets</span>
+        </article>
+        <article>
+          <Users size={18} />
+          <strong>{summary?.teamCount ?? teams.length}</strong>
+          <span>Team memberships</span>
+        </article>
+        <article>
+          <Bell size={18} />
+          <strong>{unreadCount}</strong>
+          <span>Unread notifications</span>
+        </article>
+      </section>
 
-      <div className="search-container">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search snippets by title, language, or tag..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      <div className="snippets-list">
-        {filteredSnippets.length === 0 ? (
-          <div className="empty-state">
-            <p>
-              {searchQuery
-                ? 'No snippets found matching your search.'
-                : (isAuthenticated
-                    ? 'No snippets yet. Create your first snippet!'
-                    : 'No snippets to show. Log in or sign up to start saving snippets.')}
-            </p>
-          </div>
-        ) : (
-          filteredSnippets.map(snippet => (
-            <div key={snippet.id} className="snippet-card">
-              <div className="snippet-header">
-                <div className="snippet-title-section">
-                  <h3 className="snippet-title">{snippet.title}</h3>
-                  <span 
-                    className="language-badge" 
-                    style={{ backgroundColor: getLanguageColor(snippet.language) }}
-                  >
-                    {snippet.language}
-                  </span>
-                </div>
-                <div className="snippet-actions">
-                  <button 
-                    className="action-btn edit-btn" 
-                    onClick={() => handleEdit(snippet)}
-                    title="Edit snippet"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                  </button>
-                  <button 
-                    className="action-btn" 
-                    onClick={() => handleCopy(snippet.code)}
-                    title="Copy code"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                  </button>
-                  <button 
-                    className="action-btn delete-btn" 
-                    onClick={() => handleDelete(snippet.id)}
-                    title="Delete snippet"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {snippet.description && (
-                <p className="snippet-description">{snippet.description}</p>
-              )}
-
-              <div className="code-container">
-                <pre className="snippet-code">
-                  {expandedSnippets.has(snippet.id) 
-                    ? snippet.code 
-                    : getCodePreview(snippet.code)
-                  }
-                </pre>
-                {isCodeLong(snippet.code) && (
-                  <button 
-                    className="expand-code-btn"
-                    onClick={() => toggleExpand(snippet.id)}
-                  >
-                    {expandedSnippets.has(snippet.id) ? (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="18 15 12 9 6 15"></polyline>
-                        </svg>
-                        Show Less
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                        Show More ({snippet.code.split('\n').length - 10} more lines)
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {Array.isArray(snippet.tags) && snippet.tags.length > 0 && (
-                <div className="snippet-tags">
-                  {snippet.tags.map((tag, index) => (
-                    <span key={index} className="tag">#{tag}</span>
-                  ))}
-                </div>
-              )}
-
-              <div className="snippet-footer">
-                <span className="snippet-date">
-                  {new Date(snippet.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </span>
-                <span className={`visibility-badge ${snippet.isPublic ? 'public' : 'private'}`}>
-                  {snippet.isPublic ? '🌐 Public' : '🔒 Private'}
-                </span>
-              </div>
+      <div className="dashboard-v2__layout">
+        <aside className="dashboard-v2__sidebar">
+          <section className="dashboard-v2__panel">
+            <div className="dashboard-v2__panel-header">
+              <h2>Teams</h2>
+              <span>{teams.length}</span>
             </div>
-          ))
-        )}
+
+            <div className="dashboard-v2__team-list">
+              {teams.length === 0 ? (
+                <p className="dashboard-v2__hint">
+                  Create a team or join one with an invite code to unlock shared snippets.
+                </p>
+              ) : (
+                teams.map((team) => (
+                  <button
+                    key={team.id}
+                    type="button"
+                    className={`dashboard-v2__team-item ${teamId === team.id ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setScope('workspace');
+                      setTeamId((current) => (current === team.id ? '' : team.id));
+                    }}
+                  >
+                    <div>
+                      <strong>{team.name}</strong>
+                      <span>
+                        {team.membershipRole} · {team.snippetCount} snippets
+                      </span>
+                    </div>
+                    {team.inviteCode ? <code>{team.inviteCode}</code> : null}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {teamError ? <div className="dashboard-v2__error">{teamError}</div> : null}
+
+            <form className="dashboard-v2__stack-form" onSubmit={handleCreateTeam}>
+              <h3>Create team</h3>
+              <input
+                type="text"
+                placeholder="Platform engineering"
+                value={createTeamName}
+                onChange={(event) => setCreateTeamName(event.target.value)}
+              />
+              <textarea
+                rows="3"
+                placeholder="Shared snippets for a specific product or function."
+                value={createTeamDescription}
+                onChange={(event) => setCreateTeamDescription(event.target.value)}
+              />
+              <button type="submit" disabled={teamLoading}>
+                {teamLoading ? 'Working...' : 'Create team'}
+              </button>
+            </form>
+
+            <form className="dashboard-v2__stack-form" onSubmit={handleJoinTeam}>
+              <h3>Join team</h3>
+              <input
+                type="text"
+                placeholder="Invite code"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+              />
+              <button type="submit" disabled={teamLoading}>
+                {teamLoading ? 'Working...' : 'Join with code'}
+              </button>
+            </form>
+          </section>
+
+          <section className="dashboard-v2__panel">
+            <div className="dashboard-v2__panel-header">
+              <h2>Recent alerts</h2>
+              <span>{notifications.length}</span>
+            </div>
+            <div className="dashboard-v2__notification-list">
+              {notifications.length === 0 ? (
+                <p className="dashboard-v2__hint">Comments and snippet updates will appear here.</p>
+              ) : (
+                notifications.map((notification) => (
+                  <div key={notification.id} className="dashboard-v2__notification-item">
+                    <strong>{notification.title}</strong>
+                    <p>{notification.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </aside>
+
+        <section className="dashboard-v2__content">
+          {editorOpen ? (
+            <SnippetEditor
+              snippet={editingSnippet}
+              teams={teams}
+              onSubmit={handleSaveSnippet}
+              onCancel={resetEditor}
+              submitting={savingSnippet}
+              error={editorError}
+            />
+          ) : null}
+
+          <section className="dashboard-v2__panel dashboard-v2__panel--filters">
+            <div className="dashboard-v2__filters">
+              <label className="dashboard-v2__search">
+                <Search size={18} />
+                <input
+                  type="search"
+                  placeholder="Search snippets, code fragments, tags, or titles..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </label>
+
+              <select value={scope} onChange={(event) => setScope(event.target.value)}>
+                <option value="workspace">Workspace view</option>
+                <option value="mine">Only mine</option>
+                <option value="shared">Shared with me</option>
+                <option value="team">Team snippets</option>
+              </select>
+
+              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+                <option value="">All languages</option>
+                <option value="JAVASCRIPT">JavaScript</option>
+                <option value="TYPESCRIPT">TypeScript</option>
+                <option value="PYTHON">Python</option>
+                <option value="SQL">SQL</option>
+                <option value="HTML">HTML</option>
+                <option value="CSS">CSS</option>
+              </select>
+
+              <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
+                <option value="">All visibility</option>
+                <option value="PRIVATE">Private</option>
+                <option value="TEAM">Team</option>
+                <option value="PUBLIC">Public</option>
+              </select>
+            </div>
+          </section>
+
+          {error ? <div className="dashboard-v2__error">{error}</div> : null}
+
+          {loading ? (
+            <div className="page-panel">Loading your workspace...</div>
+          ) : snippets.length === 0 ? (
+            <div className="page-panel">
+              No snippets match the current workspace filters. Create a new snippet or widen the
+              search to see more of your library.
+            </div>
+          ) : (
+            <div className="dashboard-v2__snippet-list">
+              {snippets.map((snippet) => (
+                <SnippetCard
+                  key={snippet.id}
+                  snippet={snippet}
+                  currentUser={user}
+                  onEdit={(selectedSnippet) => {
+                    setEditingSnippet(selectedSnippet);
+                    setEditorOpen(true);
+                    setEditorError('');
+                  }}
+                  onDelete={handleDeleteSnippet}
+                  onLoadComments={loadComments}
+                  comments={commentsBySnippet[snippet.id] || []}
+                  commentsLoaded={snippet.id in commentsBySnippet}
+                  commentsLoading={commentLoadingId === snippet.id}
+                  commentDraft={commentDrafts[snippet.id] || ''}
+                  onCommentDraftChange={(snippetId, value) =>
+                    setCommentDrafts((current) => ({
+                      ...current,
+                      [snippetId]: value,
+                    }))
+                  }
+                  onCommentSubmit={handleCommentSubmit}
+                  commentSubmitting={commentSubmittingId === snippet.id}
+                  showOwner
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

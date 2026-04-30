@@ -1,16 +1,19 @@
 {
-  "name": "settingup",
+  "name": "codevault-server",
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon -r dotenv/config --experimental src/index.js",
     "start": "node -r dotenv/config src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "check:imports": "node -e \"Promise.all([import('./src/controllers/auth.controller.js'), import('./src/controllers/snippet.controller.js'), import('./src/controllers/team.controller.js'), import('./src/controllers/notification.controller.js'), import('./src/routes/auth.routes.js'), import('./src/routes/snippet.routes.js'), import('./src/routes/team.routes.js'), import('./src/routes/notification.routes.js')]).then(() => console.log('imports-ok'))\"",
+    "test": "npm run prisma:validate && npm run check:imports"
   },
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "CodeVault backend API for snippet management, collaboration, and secure authentication.",
   "dependencies": {
     "@prisma/client": "^6.16.3",
     "bcrypt": "^6.0.0",

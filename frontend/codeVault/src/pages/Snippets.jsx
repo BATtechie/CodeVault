@@ -1,187 +1,111 @@
-import React, { useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
+import SnippetCard from '../components/SnippetCard';
+import { apiRequest, buildQueryString, getErrorMessage } from '../config/api.js';
+import useAuth from '../hooks/useAuth.js';
 import './Snippets.css';
-import { API_BASE_URL } from '../config/api.js';
 
 const Snippets = () => {
+  const { user } = useAuth();
   const [snippets, setSnippets] = useState([]);
+  const [search, setSearch] = useState('');
+  const [language, setLanguage] = useState('');
+  const [tag, setTag] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expandedSnippets, setExpandedSnippets] = useState(new Set());
+  const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
-    fetchPublicSnippets();
-  }, []);
+    const controller = new AbortController();
 
-  const fetchPublicSnippets = async () => {
-    try {
+    const loadSnippets = async () => {
       setLoading(true);
       setError('');
 
-      const res = await fetch(`${API_BASE_URL}/api/snippets/public`);
-      
-      // If response is not ok, treat as empty state
-      if (!res.ok) {
-        setSnippets([]);
-        setError('');
+      try {
+        const query = buildQueryString({
+          q: deferredSearch,
+          language,
+          tag,
+        });
+        const response = await apiRequest(`/api/snippets/public${query}`, {
+          signal: controller.signal,
+        });
+
+        setSnippets(response.data || []);
+      } catch (loadError) {
+        if (loadError.name !== 'AbortError') {
+          setError(getErrorMessage(loadError, 'Unable to load community snippets right now.'));
+        }
+      } finally {
         setLoading(false);
-        return;
       }
+    };
 
-      const data = await res.json();
+    loadSnippets();
 
-      // If data is not successful or missing, treat as empty state
-      if (!data.success) {
-        setSnippets([]);
-        setError('');
-        setLoading(false);
-        return;
-      }
-
-      // Successfully loaded snippets (could be empty array)
-      setSnippets(data.data || []);
-      setError('');
-    } catch (err) {
-      console.error('Error fetching public snippets:', err);
-      // On error, show empty state instead of error message
-      setSnippets([]);
-      setError('');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleExpand = (snippetId) => {
-    setExpandedSnippets(prev => {
-      const next = new Set(prev);
-      if (next.has(snippetId)) {
-        next.delete(snippetId);
-      } else {
-        next.add(snippetId);
-      }
-      return next;
-    });
-  };
-
-  const getCodePreview = (code, maxLines = 10) => {
-    const lines = code.split('\n');
-    if (lines.length <= maxLines) return code;
-    return lines.slice(0, maxLines).join('\n');
-  };
-
-  const isCodeLong = (code) => code.split('\n').length > 10;
-
-  const filteredSnippets = snippets.filter(snippet =>
-    snippet.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    snippet.language.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (Array.isArray(snippet.tags) && snippet.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
-  );
-
-  if (loading) {
-    return (
-      <div className="snippets-page">
-        <div className="loading-container">
-          <div className="loading-spinner">Loading public snippets...</div>
-        </div>
-      </div>
-    );
-  }
+    return () => controller.abort();
+  }, [deferredSearch, language, tag]);
 
   return (
-    <div className="snippets-page">
-      <div className="snippets-header">
+    <div className="snippets-v2">
+      <section className="snippets-v2__hero">
         <div>
-          <h1 className="snippets-title">Public Snippets</h1>
-          <p className="snippets-subtitle">
-            Browse snippets shared by the community.
+          <span className="snippets-v2__pill">Community library</span>
+          <h1>Browse public snippets from the wider CodeVault workspace.</h1>
+          <p>
+            Search by intent, filter by language or tag, and explore the snippets other developers
+            chose to share publicly.
           </p>
         </div>
-        <div className="snippet-count">
-          {snippets.length} {snippets.length === 1 ? 'snippet' : 'snippets'}
-        </div>
-      </div>
+      </section>
 
-      <div className="snippets-search">
+      <section className="snippets-v2__toolbar">
+        <input
+          type="search"
+          placeholder="Search titles, tags, languages, or code fragments..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+          <option value="">All languages</option>
+          <option value="JAVASCRIPT">JavaScript</option>
+          <option value="TYPESCRIPT">TypeScript</option>
+          <option value="PYTHON">Python</option>
+          <option value="SQL">SQL</option>
+          <option value="HTML">HTML</option>
+          <option value="CSS">CSS</option>
+        </select>
         <input
           type="text"
-          className="search-input"
-          placeholder="Search by title, language, or tag..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Tag filter, for example auth"
+          value={tag}
+          onChange={(event) => setTag(event.target.value)}
         />
-      </div>
+      </section>
 
-      {error && (
-        <div className="error-message" style={{ margin: '1rem 0', padding: '1rem' }}>
-          {error}
+      {error ? <div className="snippets-v2__error">{error}</div> : null}
+
+      {loading ? (
+        <div className="page-panel">Loading public snippets...</div>
+      ) : snippets.length === 0 ? (
+        <div className="page-panel">
+          No public snippets match the current filters yet. Try a broader search or share a few from
+          your own workspace.
         </div>
+      ) : (
+        <section className="snippets-v2__list">
+          {snippets.map((snippet) => (
+            <SnippetCard
+              key={snippet.id}
+              snippet={snippet}
+              currentUser={user}
+              readOnly
+              allowComments={false}
+              showOwner
+            />
+          ))}
+        </section>
       )}
-
-      <div className="snippets-list">
-        {filteredSnippets.length === 0 ? (
-          <div className="empty-state">
-            <p>{searchQuery ? 'No snippets found matching your search.' : 'No public snippets available yet.'}</p>
-          </div>
-        ) : (
-          filteredSnippets.map(snippet => (
-            <div key={snippet.id} className="snippet-card">
-              <div className="snippet-header">
-                <div className="snippet-title-section">
-                  <h3 className="snippet-title">{snippet.title}</h3>
-                  <span className="language-badge">{snippet.language}</span>
-                </div>
-                <div className="author-info">
-                  <span className="author-avatar">
-                    {(snippet.user?.name || 'U').charAt(0).toUpperCase()}
-                  </span>
-                  <span className="author-name">
-                    {snippet.user?.name || 'Unknown user'}
-                  </span>
-                </div>
-              </div>
-
-              {snippet.description && (
-                <p className="snippet-description">{snippet.description}</p>
-              )}
-
-              <div className="code-container">
-                <pre className="snippet-code">
-                  {expandedSnippets.has(snippet.id)
-                    ? snippet.code
-                    : getCodePreview(snippet.code)}
-                </pre>
-                {isCodeLong(snippet.code) && (
-                  <button
-                    className="expand-code-btn"
-                    onClick={() => toggleExpand(snippet.id)}
-                  >
-                    {expandedSnippets.has(snippet.id) ? 'Show Less' : `Show More (${snippet.code.split('\n').length - 10} more lines)`}
-                  </button>
-                )}
-              </div>
-
-              {Array.isArray(snippet.tags) && snippet.tags.length > 0 && (
-                <div className="snippet-tags">
-                  {snippet.tags.map((tag, index) => (
-                    <span key={index} className="tag">#{tag}</span>
-                  ))}
-                </div>
-              )}
-
-              <div className="snippet-footer">
-                <span className="snippet-date">
-                  {new Date(snippet.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </span>
-                <span className="visibility-badge public">🌐 Public</span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
     </div>
   );
 };

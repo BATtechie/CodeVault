@@ -1,127 +1,134 @@
-import express from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import cookieParser from 'cookie-parser';
-import authRoutes from './routes/auth.routes.js';
-import snippetRoutes from './routes/snippet.routes.js';
+import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import authRoutes from './routes/auth.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
+import snippetRoutes from './routes/snippet.routes.js';
+import teamRoutes from './routes/team.routes.js';
+import { sendError, sendSuccess } from './utils/http.js';
 
 dotenv.config();
 
 const app = express();
-app.use(helmet());
-// CORS configuration
-// Allow multiple origins for development and production
-const allowedOrigins = [
-  'http://localhost:5173', // Vite default dev server
-  'http://localhost:4173', // Vite preview port
-  'http://localhost:3000', // Alternative local port
-  process.env.FRONTEND_URL, // Production frontend URL from env
-].filter(Boolean); // Remove undefined values
+const isProduction = process.env.NODE_ENV === 'production';
+const configuredFrontendOrigins = [
+  process.env.FRONTEND_URL,
+  ...(process.env.FRONTEND_URLS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+].filter(Boolean);
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // In development, allow all origins
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    
-    // In production, use exact-match allowlist.
-    // Optionally allow Vercel preview URLs if explicitly enabled.
-    const allowVercelPreviews = process.env.ALLOW_VERCEL_PREVIEWS === 'true';
-    const isAllowed =
-      allowedOrigins.includes(origin) ||
-      (allowVercelPreviews && origin.endsWith('.vercel.app'));
-    
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Set-Cookie'],
-};
-app.use(cors(corsOptions));
-app.use(express.json());
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  }),
+);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (!isProduction) {
+        return callback(null, true);
+      }
+
+      const allowPreviewUrls = process.env.ALLOW_VERCEL_PREVIEWS === 'true';
+      const isAllowed =
+        configuredFrontendOrigins.includes(origin) ||
+        (allowPreviewUrls && origin.endsWith('.vercel.app'));
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }),
+);
+
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: isProduction ? 25 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many authentication attempts. Please wait a few minutes and try again.',
+  },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: isProduction ? 300 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
+app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 
-// Simple request logger for debugging route hits
-app.use((req, _res, next) => {
-  console.log(`[req] ${req.method} ${req.path}`);
-  next();
-});
+app.get('/', (_req, res) =>
+  sendSuccess(res, {
+    message: 'CodeVault API is running.',
+    data: {
+      environment: process.env.NODE_ENV || 'development',
+    },
+  }),
+);
 
-// Setup morgan logging in development (optional)
-if (process.env.NODE_ENV === 'development') {
-  import('morgan')
-    .then((morgan) => {
-      app.use(morgan.default('dev'));
-      console.log('Morgan logging enabled');
-    })
-    .catch(() => {
-      // Morgan is optional, continue without it
-      console.log('Morgan logging not available (optional dependency)');
-    });
-}
-
-app.get('/', (req, res) => {
-  res.json({ 
-    status: 'success', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    database: process.env.DATABASE_URL ? 'configured' : 'not configured'
-  });
-});
+app.get('/health', (_req, res) =>
+  sendSuccess(res, {
+    data: {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      databaseConfigured: Boolean(process.env.DATABASE_URL),
+    },
+  }),
+);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/snippets', snippetRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/notifications', notificationRoutes);
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err);
-  const statusCode = err.statusCode || err.status || 500;
-  res.status(statusCode).json({
-    status: 'error',
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+app.use((req, res) =>
+  sendError(res, {
+    status: 404,
+    message: `Route ${req.method} ${req.originalUrl} was not found.`,
+  }),
+);
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+
+  return sendError(res, {
+    status: error.statusCode || error.status || 500,
+    message:
+      error.message ||
+      'An unexpected server error occurred.',
+    details: isProduction ? undefined : { stack: error.stack },
   });
 });
 
-// Catch uncaught exceptions (synchronous errors not caught elsewhere)
-// process.on('uncaughtException', (err) => {
-//   console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-//   console.error(err.name, err.message);
-//   // It's unsafe to continue running after an uncaught exception
-//   process.exit(1);
-// });
+const PORT = Number(process.env.PORT) || 3000;
 
-const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`CodeVault API listening on port ${PORT}`);
 });
