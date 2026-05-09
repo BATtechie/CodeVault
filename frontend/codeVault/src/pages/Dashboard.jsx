@@ -1,5 +1,6 @@
 import { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { Bell, FolderKanban, Plus, Search, Users } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import SnippetEditor from '../components/SnippetEditor';
 import SnippetCard from '../components/SnippetCard';
 import { apiRequest, buildQueryString, getErrorMessage } from '../config/api.js';
@@ -7,6 +8,8 @@ import useAuth from '../hooks/useAuth.js';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     user,
     summary,
@@ -38,6 +41,12 @@ const Dashboard = () => {
   const [teamError, setTeamError] = useState('');
   const [teamLoading, setTeamLoading] = useState(false);
   const deferredSearch = useDeferredValue(search);
+
+  const openNewSnippetEditor = () => {
+    setEditorOpen(true);
+    setEditingSnippet(null);
+    setEditorError('');
+  };
 
   useEffect(() => {
     let active = true;
@@ -110,6 +119,17 @@ const Dashboard = () => {
       controller.abort();
     };
   }, [deferredSearch, language, scope, teamId, visibility]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+
+    if (params.get('create') === '1') {
+      setEditorOpen(true);
+      setEditingSnippet(null);
+      setEditorError('');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const resetEditor = () => {
     setEditingSnippet(null);
@@ -295,11 +315,7 @@ const Dashboard = () => {
         <button
           type="button"
           className="dashboard-v2__primary"
-          onClick={() => {
-            setEditorOpen(true);
-            setEditingSnippet(null);
-            setEditorError('');
-          }}
+          onClick={openNewSnippetEditor}
         >
           <Plus size={18} />
           New snippet

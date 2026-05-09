@@ -6,6 +6,7 @@ import useAuth from '../hooks/useAuth.js';
 import './SignIn.css';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SNIPPET_CREATION_ROUTE = '/dashboard?create=1';
 
 const SignIn = () => {
   const location = useLocation();
@@ -23,12 +24,16 @@ const SignIn = () => {
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const postAuthRoute =
+    location.state?.from && location.state.from !== '/dashboard'
+      ? location.state.from
+      : SNIPPET_CREATION_ROUTE;
 
   useEffect(() => {
     if (user) {
-      navigate(location.state?.from || '/dashboard', { replace: true });
+      navigate(postAuthRoute, { replace: true });
     }
-  }, [location.state, navigate, user]);
+  }, [navigate, postAuthRoute, user]);
 
   const resetForMode = (nextIsLogin) => {
     setIsLogin(nextIsLogin);
@@ -83,7 +88,7 @@ const SignIn = () => {
           setTwoFactorRequired(true);
           setError('');
         } else {
-          navigate(location.state?.from || '/dashboard', { replace: true });
+          navigate(postAuthRoute, { replace: true });
         }
       } else {
         await signup({
@@ -92,7 +97,7 @@ const SignIn = () => {
           password,
           rememberMe,
         });
-        navigate('/dashboard', { replace: true });
+        navigate(SNIPPET_CREATION_ROUTE, { replace: true });
       }
     } catch (submitError) {
       setError(
