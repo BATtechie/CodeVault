@@ -19,7 +19,7 @@ CodeVault is a full-stack code snippet management system for developers and team
 ### Frontend
 
 - React 19
-- React Router 7
+- React Router 7 
 - Vite
 - Plain CSS with reusable UI components
 - `lucide-react` icons

@@ -159,7 +159,7 @@ const SignIn = () => {
         <form className="signin-v2__form" onSubmit={handleSubmit}>
           {!isLogin ? (
             <label>
-              <span>Full name</span>
+              <span>Full Name</span>
               <input
                 type="text"
                 placeholder="Your name"
