@@ -48,7 +48,7 @@ CodeVault/
 │   │   ├── hooks/
 │   │   ├── pages/
 │   │   └── config/
-│   ├── .env.example
+│   ├── .env
 │   └── package.json
 ├── server/
 │   ├── prisma/
@@ -60,7 +60,7 @@ CodeVault/
 │   │   ├── middleware/
 │   │   ├── routes/
 │   │   └── utils/
-│   ├── .env.example
+│   ├── .env
 │   └── package.json
 └── README.md
 ```
@@ -112,7 +112,9 @@ cd ../frontend/codeVault
 npm install
 ```
 
-### 2. Configure environment variables
+### 2. Environment files
+
+The repository now uses committed final env files instead of `.env.example` templates.
 
 Backend: `server/.env`
 
@@ -122,6 +124,8 @@ JWT_SECRET="replace-with-a-long-random-secret"
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL="http://localhost:5173"
+COOKIE_SECURE="false"
+COOKIE_SAMESITE="lax"
 ```
 
 Frontend: `frontend/codeVault/.env`

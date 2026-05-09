@@ -18,6 +18,26 @@ const ensureJwtSecret = () => {
   return process.env.JWT_SECRET;
 };
 
+const resolveCookieSecure = () => {
+  if (process.env.COOKIE_SECURE === 'true') {
+    return true;
+  }
+
+  if (process.env.COOKIE_SECURE === 'false') {
+    return false;
+  }
+
+  return process.env.NODE_ENV === 'production';
+};
+
+const resolveSameSite = () => {
+  if (process.env.COOKIE_SAMESITE) {
+    return process.env.COOKIE_SAMESITE;
+  }
+
+  return resolveCookieSecure() ? 'none' : 'lax';
+};
+
 const encodeBase32 = (buffer) => {
   let output = '';
   let bits = 0;
@@ -122,12 +142,10 @@ export const getSessionDurationMs = (rememberMe) =>
   rememberMe ? REMEMBER_ME_MS : SHORT_SESSION_MS;
 
 export const getCookieOptions = (rememberMe = false) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: resolveCookieSecure(),
+    sameSite: resolveSameSite(),
     maxAge: getSessionDurationMs(rememberMe),
     path: '/',
   };
@@ -136,16 +154,13 @@ export const getCookieOptions = (rememberMe = false) => {
 export const setSessionCookie = (res, token, rememberMe = false) =>
   res.cookie(SESSION_COOKIE_NAME, token, getCookieOptions(rememberMe));
 
-export const clearSessionCookie = (res) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-
+export const clearSessionCookie = (res) =>
   res.clearCookie(SESSION_COOKIE_NAME, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: resolveCookieSecure(),
+    sameSite: resolveSameSite(),
     path: '/',
   });
-};
 
 export const generateTwoFactorSecret = () => encodeBase32(crypto.randomBytes(20));
 

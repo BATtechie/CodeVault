@@ -7,6 +7,8 @@ This project is split into two deployable apps:
 
 You can deploy them independently, which keeps the frontend fast and the backend easier to scale.
 
+The committed `.env` files in `server/` and `frontend/codeVault/` are now the source of truth for the current production-oriented setup in this workspace.
+
 ## Production Environment Variables
 
 ### Frontend
@@ -23,6 +25,8 @@ JWT_SECRET=replace-with-a-long-random-secret
 NODE_ENV=production
 PORT=3000
 FRONTEND_URL=https://your-frontend-domain.com
+COOKIE_SECURE=true
+COOKIE_SAMESITE=none
 # Optional comma-separated allowlist:
 # FRONTEND_URLS=https://preview-1.vercel.app,https://preview-2.vercel.app
 # Optional for Vercel previews:

@@ -1,11 +1,18 @@
+const cleanEnvValue = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/^['"]+|['"]+$/g, '');
+
+const viteEnv = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+
 const getBackendUrl = () => {
-  const configuredUrl = import.meta.env.VITE_BACKEND_URL?.trim();
+  const configuredUrl = cleanEnvValue(viteEnv.VITE_BACKEND_URL);
 
   if (configuredUrl) {
     return configuredUrl.replace(/\/$/, '');
   }
 
-  if (import.meta.env.PROD) {
+  if (viteEnv.PROD) {
     console.warn('VITE_BACKEND_URL is not configured. Falling back to localhost.');
   }
 

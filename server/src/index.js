@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.routes.js';
+import prisma from './db/prisma.js';
 import notificationRoutes from './routes/notification.routes.js';
 import snippetRoutes from './routes/snippet.routes.js';
 import teamRoutes from './routes/team.routes.js';
@@ -81,6 +82,16 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const getDatabaseHealth = async () => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return 'healthy';
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    return 'unhealthy';
+  }
+};
+
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 
@@ -93,15 +104,17 @@ app.get('/', (_req, res) =>
   }),
 );
 
-app.get('/health', (_req, res) =>
-  sendSuccess(res, {
+app.get('/health', async (_req, res) => {
+  const database = await getDatabaseHealth();
+
+  return sendSuccess(res, {
     data: {
-      status: 'healthy',
+      status: database === 'healthy' ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
-      databaseConfigured: Boolean(process.env.DATABASE_URL),
+      database,
     },
-  }),
-);
+  });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/snippets', snippetRoutes);
@@ -129,6 +142,17 @@ app.use((error, _req, res, _next) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 
-app.listen(PORT, () => {
-  console.log(`CodeVault API listening on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await prisma.$connect();
+
+    app.listen(PORT, () => {
+      console.log(`CodeVault API listening on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start CodeVault API:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

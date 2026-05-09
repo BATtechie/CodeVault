@@ -51,6 +51,9 @@ const buildAuthResponse = (user) => {
   };
 };
 
+const isSchemaMismatchError = (error) =>
+  error?.code === 'P2021' || error?.code === 'P2022';
+
 const signUserIn = (res, user, rememberMe) => {
   const token = createSessionToken(user, { rememberMe });
   setSessionCookie(res, token, rememberMe);
@@ -121,7 +124,9 @@ const authController = {
       console.error('Signup error:', error);
       return sendError(res, {
         status: 500,
-        message: 'We could not create your account right now.',
+        message: isSchemaMismatchError(error)
+          ? 'The database schema is out of date. Run the latest Prisma migrations and try again.'
+          : 'We could not create your account right now.',
       });
     }
   },
@@ -231,7 +236,9 @@ const authController = {
       console.error('Login error:', error);
       return sendError(res, {
         status: 500,
-        message: 'We could not sign you in right now.',
+        message: isSchemaMismatchError(error)
+          ? 'The database schema is out of date. Run the latest Prisma migrations and try again.'
+          : 'We could not sign you in right now.',
       });
     }
   },
