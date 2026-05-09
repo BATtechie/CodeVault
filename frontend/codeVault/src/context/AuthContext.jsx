@@ -9,6 +9,29 @@ const clearAuthState = (setters) => {
   setters.setUnreadCount(0);
 };
 
+const normalizeSessionPayload = (response) => {
+  const data = response?.data;
+
+  if (!data) {
+    return {
+      user: null,
+      summary: null,
+    };
+  }
+
+  if (data.user) {
+    return {
+      user: data.user,
+      summary: data.summary || null,
+    };
+  }
+
+  return {
+    user: data,
+    summary: null,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -31,10 +54,12 @@ export const AuthProvider = ({ children }) => {
   const refreshSession = async () => {
     try {
       const response = await apiRequest('/api/auth/me');
-      setUser(response.data.user);
-      setSummary(response.data.summary);
+      const session = normalizeSessionPayload(response);
+
+      setUser(session.user);
+      setSummary(session.summary);
       setAuthLoading(false);
-      return response.data.user;
+      return session.user;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         clearAuthState({ setUser, setSummary, setNotifications, setUnreadCount });
@@ -120,9 +145,12 @@ export const AuthProvider = ({ children }) => {
       body: JSON.stringify(payload),
     });
 
-    setUser(response.data.user);
+    const session = normalizeSessionPayload(response);
+
+    setUser(session.user);
+    setSummary(session.summary);
     await refreshSession();
-    return response.data.user;
+    return session.user;
   };
 
   const setupTwoFactor = async () => {
