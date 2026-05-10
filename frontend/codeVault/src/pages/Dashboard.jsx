@@ -1,5 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useState } from 'react';
-import { Bell, FolderKanban, Plus, Search, Users } from 'lucide-react';
+import { Bell, ChevronDown, FolderKanban, Plus, Search, Users } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import SnippetEditor from '../components/SnippetEditor';
 import SnippetCard from '../components/SnippetCard';
@@ -444,40 +444,98 @@ const Dashboard = () => {
           ) : null}
 
           <section className="dashboard-v2__panel dashboard-v2__panel--filters">
+            <div className="dashboard-v2__filters-header">
+              <div>
+                <span className="dashboard-v2__filters-kicker">Browse snippets</span>
+                <h2>Filter your workspace in one place</h2>
+                <p>
+                  Jump between teams, personal snippets, public examples, and quick searches
+                  without leaving the dashboard.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="dashboard-v2__filter-action"
+                onClick={openNewSnippetEditor}
+              >
+                <Plus size={18} />
+                Create a new snippet
+              </button>
+            </div>
+
             <div className="dashboard-v2__filters">
-              <label className="dashboard-v2__search">
+              <label className="dashboard-v2__filter-control dashboard-v2__filter-control--search">
                 <Search size={18} />
                 <input
                   type="search"
                   placeholder="Search snippets, code fragments, tags, or titles..."
+                  aria-label="Search snippets"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </label>
 
-              <select value={scope} onChange={(event) => setScope(event.target.value)}>
-                <option value="workspace">Workspace view</option>
-                <option value="mine">Only mine</option>
-                <option value="shared">Shared with me</option>
-                <option value="team">Team snippets</option>
-              </select>
+              <div className="dashboard-v2__filter-control dashboard-v2__filter-control--select">
+                <select
+                  aria-label="Filter by team"
+                  value={teamId}
+                  onChange={(event) => setTeamId(event.target.value)}
+                >
+                  <option value="">All teams</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={18} className="dashboard-v2__filter-chevron" />
+              </div>
 
-              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
-                <option value="">All languages</option>
-                <option value="JAVASCRIPT">JavaScript</option>
-                <option value="TYPESCRIPT">TypeScript</option>
-                <option value="PYTHON">Python</option>
-                <option value="SQL">SQL</option>
-                <option value="HTML">HTML</option>
-                <option value="CSS">CSS</option>
-              </select>
+              <div className="dashboard-v2__filter-control dashboard-v2__filter-control--select">
+                <select
+                  aria-label="Filter workspace scope"
+                  value={scope}
+                  onChange={(event) => setScope(event.target.value)}
+                >
+                  <option value="workspace">Workspace</option>
+                  <option value="mine">Only mine</option>
+                  <option value="shared">Shared with me</option>
+                  <option value="team">Team snippets</option>
+                </select>
+                <ChevronDown size={18} className="dashboard-v2__filter-chevron" />
+              </div>
 
-              <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
-                <option value="">All visibility</option>
-                <option value="PRIVATE">Private</option>
-                <option value="TEAM">Team</option>
-                <option value="PUBLIC">Public</option>
-              </select>
+              <div className="dashboard-v2__filter-control dashboard-v2__filter-control--select">
+                <select
+                  aria-label="Filter by language"
+                  value={language}
+                  onChange={(event) => setLanguage(event.target.value)}
+                >
+                  <option value="">All languages</option>
+                  <option value="JAVASCRIPT">JavaScript</option>
+                  <option value="TYPESCRIPT">TypeScript</option>
+                  <option value="PYTHON">Python</option>
+                  <option value="SQL">SQL</option>
+                  <option value="HTML">HTML</option>
+                  <option value="CSS">CSS</option>
+                </select>
+                <ChevronDown size={18} className="dashboard-v2__filter-chevron" />
+              </div>
+
+              <div className="dashboard-v2__filter-control dashboard-v2__filter-control--select">
+                <select
+                  aria-label="Filter by visibility"
+                  value={visibility}
+                  onChange={(event) => setVisibility(event.target.value)}
+                >
+                  <option value="">All visibility</option>
+                  <option value="PRIVATE">Private</option>
+                  <option value="TEAM">Team</option>
+                  <option value="PUBLIC">Public</option>
+                </select>
+                <ChevronDown size={18} className="dashboard-v2__filter-chevron" />
+              </div>
             </div>
           </section>
 
