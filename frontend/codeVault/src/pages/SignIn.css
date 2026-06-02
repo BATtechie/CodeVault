@@ -4,9 +4,9 @@
   gap: 1.5rem;
   align-items: stretch;
   background:
-    radial-gradient(circle at top left, rgba(25, 68, 108, 0.14), transparent 22%),
-    radial-gradient(circle at bottom right, rgba(135, 96, 255, 0.2), transparent 28%),
-    linear-gradient(135deg, #0b1120, #121a2e 45%, #1e2540);
+    radial-gradient(circle at top left, rgba(25, 68, 108, 0.08), transparent 25%),
+    radial-gradient(circle at bottom right, rgba(135, 96, 255, 0.08), transparent 30%),
+    linear-gradient(180deg, var(--surface), var(--surface-alt));
   padding: 1rem;
 }
 
@@ -17,7 +17,7 @@
 }
 
 .signin-v2__hero {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
   display: grid;
   gap: 1rem;
   align-content: center;
@@ -28,10 +28,12 @@
   justify-self: start;
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(25, 68, 108, 0.08);
+  color: var(--text-emphasis);
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
+  font-weight: 700;
 }
 
 .signin-v2__hero h1,
@@ -62,8 +64,8 @@
 }
 
 .signin-v2__panel {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 28px 80px rgba(7, 11, 20, 0.28);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-card);
   display: grid;
   gap: 1rem;
   align-content: start;

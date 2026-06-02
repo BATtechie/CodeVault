@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, FolderKanban, Plus, Search, Users } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import SnippetEditor from '../components/SnippetEditor';
@@ -6,6 +6,12 @@ import SnippetCard from '../components/SnippetCard';
 import { apiRequest, buildQueryString, getErrorMessage } from '../config/api.js';
 import useAuth from '../hooks/useAuth.js';
 import './Dashboard.css';
+
+const WORKSPACE_VIEW = {
+  TEAMS: 'teams',
+  CREATE: 'create',
+  BROWSE: 'browse',
+};
 
 const Dashboard = () => {
   const location = useLocation();
@@ -40,11 +46,31 @@ const Dashboard = () => {
   const [joinCode, setJoinCode] = useState('');
   const [teamError, setTeamError] = useState('');
   const [teamLoading, setTeamLoading] = useState(false);
+  const [activeWorkspaceView, setActiveWorkspaceView] = useState(WORKSPACE_VIEW.BROWSE);
   const deferredSearch = useDeferredValue(search);
+  const totalSnippets = summary?.snippetCount ?? snippets.length;
+  const editorSectionRef = useRef(null);
 
   const openNewSnippetEditor = () => {
+    setActiveWorkspaceView(WORKSPACE_VIEW.CREATE);
     setEditorOpen(true);
     setEditingSnippet(null);
+    setEditorError('');
+  };
+
+  // Auto-scroll to editor when opened
+  useEffect(() => {
+    if (editorOpen && editorSectionRef.current) {
+      setTimeout(() => {
+        editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+    }
+  }, [editorOpen]);
+
+  const openSnippetEditorForEdit = (selectedSnippet) => {
+    setActiveWorkspaceView(WORKSPACE_VIEW.CREATE);
+    setEditingSnippet(selectedSnippet);
+    setEditorOpen(true);
     setEditorError('');
   };
 
@@ -124,6 +150,7 @@ const Dashboard = () => {
     const params = new URLSearchParams(location.search);
 
     if (params.get('create') === '1') {
+      setActiveWorkspaceView(WORKSPACE_VIEW.CREATE);
       setEditorOpen(true);
       setEditingSnippet(null);
       setEditorError('');
@@ -135,6 +162,7 @@ const Dashboard = () => {
     setEditingSnippet(null);
     setEditorOpen(false);
     setEditorError('');
+    setActiveWorkspaceView(WORKSPACE_VIEW.BROWSE);
   };
 
   const loadComments = async (snippetId) => {
@@ -301,6 +329,39 @@ const Dashboard = () => {
     }
   };
 
+  const workspaceCards = [
+    {
+      id: WORKSPACE_VIEW.TEAMS,
+      eyebrow: 'Collaboration',
+      title: 'Teams',
+      description:
+        'Create shared spaces, invite teammates, and jump into secure snippet libraries together.',
+      meta: `${teams.length} team${teams.length === 1 ? '' : 's'} connected`,
+      icon: Users,
+    },
+    {
+      id: WORKSPACE_VIEW.CREATE,
+      eyebrow: 'Capture',
+      title: 'Create a new snippet',
+      description:
+        'Turn a useful pattern into a reusable snippet with language, tags, visibility, and team access.',
+      meta: editingSnippet ? 'Continue editing your draft' : 'Start a fresh code entry',
+      icon: Plus,
+    },
+    {
+      id: WORKSPACE_VIEW.BROWSE,
+      eyebrow: 'Discovery',
+      title: 'Browse snippets',
+      description:
+        'Search personal, public, and team snippets with filters that help you find code faster.',
+      meta:
+        loading
+          ? 'Loading your library...'
+          : `${snippets.length} visible now · ${totalSnippets} total saved`,
+      icon: Search,
+    },
+  ];
+
   return (
     <div className="dashboard-v2">
       <section className="dashboard-v2__hero">
@@ -340,98 +401,154 @@ const Dashboard = () => {
         </article>
       </section>
 
-      <div className="dashboard-v2__layout">
-        <aside className="dashboard-v2__sidebar">
-          <section className="dashboard-v2__panel">
-            <div className="dashboard-v2__panel-header">
-              <h2>Teams</h2>
-              <span>{teams.length}</span>
-            </div>
+      <section className="dashboard-v2__hub">
+        {workspaceCards.map((card) => {
+          const Icon = card.icon;
+          const isActive = activeWorkspaceView === card.id;
 
-            <div className="dashboard-v2__team-list">
-              {teams.length === 0 ? (
-                <p className="dashboard-v2__hint">
-                  Create a team or join one with an invite code to unlock shared snippets.
-                </p>
-              ) : (
-                teams.map((team) => (
-                  <button
-                    key={team.id}
-                    type="button"
-                    className={`dashboard-v2__team-item ${teamId === team.id ? 'is-active' : ''}`}
-                    onClick={() => {
-                      setScope('workspace');
-                      setTeamId((current) => (current === team.id ? '' : team.id));
-                    }}
-                  >
-                    <div>
-                      <strong>{team.name}</strong>
-                      <span>
-                        {team.membershipRole} · {team.snippetCount} snippets
-                      </span>
+          return (
+            <button
+              key={card.id}
+              type="button"
+              className={`dashboard-v2__hub-card ${isActive ? 'is-active' : ''}`}
+              onClick={() => {
+                if (card.id === WORKSPACE_VIEW.CREATE) {
+                  openNewSnippetEditor();
+                  return;
+                }
+
+                setActiveWorkspaceView(card.id);
+              }}
+            >
+              <span className="dashboard-v2__hub-icon">
+                <Icon size={20} />
+              </span>
+              <span className="dashboard-v2__hub-eyebrow">{card.eyebrow}</span>
+              <strong>{card.title}</strong>
+              <p>{card.description}</p>
+              <span className="dashboard-v2__hub-meta">{card.meta}</span>
+            </button>
+          );
+        })}
+      </section>
+
+      {activeWorkspaceView === WORKSPACE_VIEW.TEAMS ? (
+        <section className="dashboard-v2__workspace-shell">
+          <div className="dashboard-v2__workspace-banner">
+            <span className="dashboard-v2__filters-kicker">Teams</span>
+            <h2>Manage collaboration in one place</h2>
+            <p>
+              Create teams, join with invite codes, and move into shared snippet libraries when
+              you want to collaborate with others.
+            </p>
+          </div>
+
+          <div className="dashboard-v2__workspace-grid">
+            <section className="dashboard-v2__panel">
+              <div className="dashboard-v2__panel-header">
+                <h2>Teams</h2>
+                <span>{teams.length}</span>
+              </div>
+
+              <div className="dashboard-v2__team-list">
+                {teams.length === 0 ? (
+                  <p className="dashboard-v2__hint">
+                    Create a team or join one with an invite code to unlock shared snippets.
+                  </p>
+                ) : (
+                  teams.map((team) => (
+                    <button
+                      key={team.id}
+                      type="button"
+                      className={`dashboard-v2__team-item ${teamId === team.id ? 'is-active' : ''}`}
+                      onClick={() => {
+                        setScope('workspace');
+                        setTeamId((current) => (current === team.id ? '' : team.id));
+                        setActiveWorkspaceView(WORKSPACE_VIEW.BROWSE);
+                      }}
+                    >
+                      <div>
+                        <strong>{team.name}</strong>
+                        <span>
+                          {team.membershipRole} · {team.snippetCount} snippets
+                        </span>
+                      </div>
+                      {team.inviteCode ? <code>{team.inviteCode}</code> : null}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {teamError ? <div className="dashboard-v2__error">{teamError}</div> : null}
+
+              <form className="dashboard-v2__stack-form" onSubmit={handleCreateTeam}>
+                <h3>Create team</h3>
+                <input
+                  type="text"
+                  placeholder="Platform engineering"
+                  value={createTeamName}
+                  onChange={(event) => setCreateTeamName(event.target.value)}
+                />
+                <textarea
+                  rows="3"
+                  placeholder="Shared snippets for a specific product or function."
+                  value={createTeamDescription}
+                  onChange={(event) => setCreateTeamDescription(event.target.value)}
+                />
+                <button type="submit" disabled={teamLoading}>
+                  {teamLoading ? 'Working...' : 'Create team'}
+                </button>
+              </form>
+
+              <form className="dashboard-v2__stack-form" onSubmit={handleJoinTeam}>
+                <h3>Join team</h3>
+                <input
+                  type="text"
+                  placeholder="Invite code"
+                  value={joinCode}
+                  onChange={(event) => setJoinCode(event.target.value)}
+                />
+                <button type="submit" disabled={teamLoading}>
+                  {teamLoading ? 'Working...' : 'Join with code'}
+                </button>
+              </form>
+            </section>
+
+            <section className="dashboard-v2__panel">
+              <div className="dashboard-v2__panel-header">
+                <h2>Recent alerts</h2>
+                <span>{notifications.length}</span>
+              </div>
+              <div className="dashboard-v2__notification-list">
+                {notifications.length === 0 ? (
+                  <p className="dashboard-v2__hint">
+                    Comments and snippet updates will appear here.
+                  </p>
+                ) : (
+                  notifications.map((notification) => (
+                    <div key={notification.id} className="dashboard-v2__notification-item">
+                      <strong>{notification.title}</strong>
+                      <p>{notification.message}</p>
                     </div>
-                    {team.inviteCode ? <code>{team.inviteCode}</code> : null}
-                  </button>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+        </section>
+      ) : null}
 
-            {teamError ? <div className="dashboard-v2__error">{teamError}</div> : null}
+      {activeWorkspaceView === WORKSPACE_VIEW.CREATE ? (
+        <section className="dashboard-v2__workspace-shell" ref={editorSectionRef}>
+          <div className="dashboard-v2__workspace-banner">
+            <span className="dashboard-v2__filters-kicker">Create</span>
+            <h2>Capture your next reusable snippet</h2>
+            <p>
+              Save a useful pattern with the right language, access controls, and team visibility
+              so it is easy to reuse later.
+            </p>
+          </div>
 
-            <form className="dashboard-v2__stack-form" onSubmit={handleCreateTeam}>
-              <h3>Create team</h3>
-              <input
-                type="text"
-                placeholder="Platform engineering"
-                value={createTeamName}
-                onChange={(event) => setCreateTeamName(event.target.value)}
-              />
-              <textarea
-                rows="3"
-                placeholder="Shared snippets for a specific product or function."
-                value={createTeamDescription}
-                onChange={(event) => setCreateTeamDescription(event.target.value)}
-              />
-              <button type="submit" disabled={teamLoading}>
-                {teamLoading ? 'Working...' : 'Create team'}
-              </button>
-            </form>
-
-            <form className="dashboard-v2__stack-form" onSubmit={handleJoinTeam}>
-              <h3>Join team</h3>
-              <input
-                type="text"
-                placeholder="Invite code"
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value)}
-              />
-              <button type="submit" disabled={teamLoading}>
-                {teamLoading ? 'Working...' : 'Join with code'}
-              </button>
-            </form>
-          </section>
-
-          <section className="dashboard-v2__panel">
-            <div className="dashboard-v2__panel-header">
-              <h2>Recent alerts</h2>
-              <span>{notifications.length}</span>
-            </div>
-            <div className="dashboard-v2__notification-list">
-              {notifications.length === 0 ? (
-                <p className="dashboard-v2__hint">Comments and snippet updates will appear here.</p>
-              ) : (
-                notifications.map((notification) => (
-                  <div key={notification.id} className="dashboard-v2__notification-item">
-                    <strong>{notification.title}</strong>
-                    <p>{notification.message}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </aside>
-
-        <section className="dashboard-v2__content">
           {editorOpen ? (
             <SnippetEditor
               snippet={editingSnippet}
@@ -441,27 +558,36 @@ const Dashboard = () => {
               submitting={savingSnippet}
               error={editorError}
             />
-          ) : null}
+          ) : (
+            <div className="page-panel">
+              Open the creator to start a new snippet or jump back to browse if you want to review
+              your existing library first.
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {activeWorkspaceView === WORKSPACE_VIEW.BROWSE ? (
+        <section className="dashboard-v2__workspace-shell">
+          <div className="dashboard-v2__workspace-banner">
+            <span className="dashboard-v2__filters-kicker">Browse</span>
+            <h2>Find the right snippet quickly</h2>
+            <p>
+              Search across your vault with team, workspace, language, and visibility filters to
+              surface the code you need.
+            </p>
+          </div>
 
           <section className="dashboard-v2__panel dashboard-v2__panel--filters">
             <div className="dashboard-v2__filters-header">
               <div>
-                <span className="dashboard-v2__filters-kicker">Browse snippets</span>
-                <h2>Filter your workspace in one place</h2>
+                <span className="dashboard-v2__filters-kicker">Snippet filters</span>
+                <h2>Browse snippets</h2>
                 <p>
-                  Jump between teams, personal snippets, public examples, and quick searches
-                  without leaving the dashboard.
+                  Refine your library by search term, team, language, and access level from this
+                  focused browse view.
                 </p>
               </div>
-
-              <button
-                type="button"
-                className="dashboard-v2__filter-action"
-                onClick={openNewSnippetEditor}
-              >
-                <Plus size={18} />
-                Create a new snippet
-              </button>
             </div>
 
             <div className="dashboard-v2__filters">
@@ -545,8 +671,8 @@ const Dashboard = () => {
             <div className="page-panel">Loading your workspace...</div>
           ) : snippets.length === 0 ? (
             <div className="page-panel">
-              No snippets match the current workspace filters. Create a new snippet or widen the
-              search to see more of your library.
+              No snippets match the current filters. Widen the search or open the create section to
+              add something new to your library.
             </div>
           ) : (
             <div className="dashboard-v2__snippet-list">
@@ -555,11 +681,7 @@ const Dashboard = () => {
                   key={snippet.id}
                   snippet={snippet}
                   currentUser={user}
-                  onEdit={(selectedSnippet) => {
-                    setEditingSnippet(selectedSnippet);
-                    setEditorOpen(true);
-                    setEditorError('');
-                  }}
+                  onEdit={openSnippetEditorForEdit}
                   onDelete={handleDeleteSnippet}
                   onLoadComments={loadComments}
                   comments={commentsBySnippet[snippet.id] || []}
@@ -580,7 +702,7 @@ const Dashboard = () => {
             </div>
           )}
         </section>
-      </div>
+      ) : null}
     </div>
   );
 };

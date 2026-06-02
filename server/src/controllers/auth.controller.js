@@ -12,6 +12,7 @@ import {
   setSessionCookie,
   verifyTwoFactorCode,
 } from '../utils/security.js';
+import { validateSchema, authSchemas } from '../utils/validation.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,29 +63,19 @@ const signUserIn = (res, user, rememberMe) => {
 const authController = {
   async signup(req, res) {
     try {
-      const email = normalizeEmail(req.body.email);
-      const password = req.body.password;
-      const name = String(req.body.name || '').trim() || null;
-      const rememberMe = Boolean(req.body.rememberMe);
-
-      if (!email || !password || !name) {
+      // Validate input against schema
+      const validation = validateSchema(req.body, authSchemas.signup);
+      if (!validation.valid) {
         return sendError(res, {
           status: 400,
-          message: 'Name, email, and password are required.',
+          message: validation.error,
         });
       }
 
-      const emailError = validateEmail(email);
-
-      if (emailError) {
-        return sendError(res, { status: 400, message: emailError });
-      }
-
-      const passwordError = validatePassword(password);
-
-      if (passwordError) {
-        return sendError(res, { status: 400, message: passwordError });
-      }
+      const email = normalizeEmail(req.body.email);
+      const password = req.body.password;
+      const name = String(req.body.name || '').trim();
+      const rememberMe = Boolean(req.body.rememberMe);
 
       const existingUser = await prisma.user.findUnique({
         where: { email },

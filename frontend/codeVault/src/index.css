@@ -36,6 +36,8 @@ body {
     radial-gradient(circle at top right, rgba(135, 96, 255, 0.08), transparent 22%),
     var(--surface);
   color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -48,13 +50,20 @@ textarea {
 input,
 select,
 textarea {
-  width: 100%;
-  border: 1px solid var(--border-soft);
-  border-radius: 1rem;
-  background: white;
   color: var(--text-primary);
-  padding: 0.95rem 1rem;
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.95rem;
   transition: 160ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px rgba(135, 96, 255, 0.1);
 }
 
 textarea {
@@ -64,14 +73,6 @@ textarea {
 input::placeholder,
 textarea::placeholder {
   color: #8b94aa;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: rgba(25, 68, 108, 0.34);
-  box-shadow: 0 0 0 4px rgba(25, 68, 108, 0.09);
 }
 
 a {

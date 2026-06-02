@@ -10,6 +10,7 @@ import notificationRoutes from './routes/notification.routes.js';
 import snippetRoutes from './routes/snippet.routes.js';
 import teamRoutes from './routes/team.routes.js';
 import { sendError, sendSuccess } from './utils/http.js';
+import { csrfMiddleware, generateCsrfTokenMiddleware } from './middleware/csrf.js';
 
 dotenv.config();
 
@@ -56,7 +57,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
   }),
 );
 
@@ -94,6 +95,8 @@ const getDatabaseHealth = async () => {
 
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
+app.use(generateCsrfTokenMiddleware);
+app.use(csrfMiddleware);
 
 app.get('/', (_req, res) =>
   sendSuccess(res, {
