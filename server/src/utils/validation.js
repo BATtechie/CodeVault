@@ -250,8 +250,8 @@ export const snippetSchemas = {
 
 export const teamSchemas = {
   create: {
-    required: ['name', 'slug'],
-    optional: ['description'],
+    required: ['name'],
+    optional: ['slug', 'description'],
     rules: {
       name: (val) => {
         if (typeof val !== 'string' || val.trim().length === 0) {

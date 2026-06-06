@@ -50,7 +50,7 @@ const Home = () => {
     <div className="home-v2">
       <section className="home-v2__hero">
         <div className="home-v2__hero-copy">
-          <span className="home-v2__pill">Market-ready snippet workflow</span>
+          {/* <span className="home-v2__pill">Market-ready snippet workflow</span> */}
           <h1>
             Organize every useful
             <span>code snippet like product knowledge.</span>

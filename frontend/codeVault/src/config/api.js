@@ -53,13 +53,28 @@ export const buildQueryString = (params = {}) => {
   return query ? `?${query}` : '';
 };
 
+const getCookie = (name) => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 export const apiRequest = async (path, options = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  const csrfToken = getCookie('__csrf');
+  if (csrfToken) {
+    headers['x-csrf-token'] = csrfToken;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     ...options,
   });
 

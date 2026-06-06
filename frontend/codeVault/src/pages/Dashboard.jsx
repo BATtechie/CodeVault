@@ -45,7 +45,8 @@ const Dashboard = () => {
   const [createTeamDescription, setCreateTeamDescription] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [teamError, setTeamError] = useState('');
-  const [teamLoading, setTeamLoading] = useState(false);
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [joiningTeam, setJoiningTeam] = useState(false);
   const [activeWorkspaceView, setActiveWorkspaceView] = useState(WORKSPACE_VIEW.BROWSE);
   const deferredSearch = useDeferredValue(search);
   const totalSnippets = summary?.snippetCount ?? snippets.length;
@@ -281,7 +282,7 @@ const Dashboard = () => {
 
   const handleCreateTeam = async (event) => {
     event.preventDefault();
-    setTeamLoading(true);
+    setCreatingTeam(true);
     setTeamError('');
 
     try {
@@ -300,13 +301,13 @@ const Dashboard = () => {
     } catch (createError) {
       setTeamError(getErrorMessage(createError, 'Unable to create a team right now.'));
     } finally {
-      setTeamLoading(false);
+      setCreatingTeam(false);
     }
   };
 
   const handleJoinTeam = async (event) => {
     event.preventDefault();
-    setTeamLoading(true);
+    setJoiningTeam(true);
     setTeamError('');
 
     try {
@@ -325,7 +326,7 @@ const Dashboard = () => {
     } catch (joinError) {
       setTeamError(getErrorMessage(joinError, 'Unable to join that team right now.'));
     } finally {
-      setTeamLoading(false);
+      setJoiningTeam(false);
     }
   };
 
@@ -495,8 +496,8 @@ const Dashboard = () => {
                   value={createTeamDescription}
                   onChange={(event) => setCreateTeamDescription(event.target.value)}
                 />
-                <button type="submit" disabled={teamLoading}>
-                  {teamLoading ? 'Working...' : 'Create team'}
+                <button type="submit" disabled={creatingTeam}>
+                  {creatingTeam ? 'Working...' : 'Create team'}
                 </button>
               </form>
 
@@ -508,8 +509,8 @@ const Dashboard = () => {
                   value={joinCode}
                   onChange={(event) => setJoinCode(event.target.value)}
                 />
-                <button type="submit" disabled={teamLoading}>
-                  {teamLoading ? 'Working...' : 'Join with code'}
+                <button type="submit" disabled={joiningTeam}>
+                  {joiningTeam ? 'Working...' : 'Join with code'}
                 </button>
               </form>
             </section>
